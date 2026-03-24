@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>JIAN YE WEBCAM</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: white;
+      font-family: "VT323", monospace;
+    }
+
+    #ascii {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #ui {
+      position: fixed;
+      left: 40px;
+      bottom: 40px;
+      z-index: 20;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      flex-wrap: wrap;
+      pointer-events: auto;
+    }
+
+    .ui-btn {
+      appearance: none;
+      border: 1px solid rgba(0, 0, 0, 0.9);
+      background: rgba(255, 255, 255, 0.92);
+      color: black;
+      font-family: "VT323", monospace;
+      font-size: 10px;
+      line-height: 1;
+      padding: 2px 4px 2px;
+      cursor: pointer;
+      border-radius: 0;
+      box-shadow: none;
+      letter-spacing: 0.02em;
+      pointer-events: auto;
+    }
+
+    .ui-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    #status {
+      font-size: 10px;
+      line-height: 1;
+      color: black;
+      letter-spacing: 0.02em;
+      padding-top: 1px;
+      user-select: none;
+    }
+
+    body {
+      cursor: crosshair;
+    }
+
+    #boot-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "VT323", monospace;
+      font-size: 13px;
+      line-height: 1.75;
+      letter-spacing: 0.05em;
+      color: black;
+      transition: opacity 0.65s ease;
+    }
+
+    #boot-lines {
+      text-align: left;
+      min-width: 300px;
+    }
+
+    #boot-cursor {
+      display: inline-block;
+      animation: blink 0.7s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    #transition-flash {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: white;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    #logo-br {
+      position: fixed;
+      bottom: 40px;
+      right: 40px;
+      z-index: 20;
+      pointer-events: none;
+      line-height: 0;
+    }
+
+    #three-layer,
+    #video {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    #three-layer {
+      z-index: 1;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #video {
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
+    /* =====================================================
+       縦画面（ポートレート）モバイル最適化
+    ===================================================== */
+    @media (orientation: portrait) and (max-width: 600px) {
+      #ui {
+        left: max(20px, env(safe-area-inset-left, 20px));
+        bottom: max(20px, env(safe-area-inset-bottom, 20px));
+        gap: 8px;
+      }
+
+      .ui-btn {
+        font-size: 10px;
+        padding: 3px 6px;
+      }
+
+      #status {
+        font-size: 10px;
+      }
+
+      #logo-br {
+        bottom: max(20px, env(safe-area-inset-bottom, 20px));
+        right: max(20px, env(safe-area-inset-right, 20px));
+      }
+
+      #boot-screen {
+        font-size: 11px;
+      }
+
+      #boot-lines {
+        min-width: 220px;
+      }
+    }
+  </style>
+
+  <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="boot-screen">
+    <div id="boot-lines"></div>
+  </div>
+  <div id="transition-flash"></div>
+  <div id="logo-br">
+    <img src="./jianye-logo-250250.png" width="50" height="50" alt="" />
+  </div>
+  <div id="three-layer"></div>
+  <canvas id="ascii"></canvas>
+
+  <div id="ui">
+    <button id="enableCameraBtn" class="ui-btn">CAMERA</button>
+    <button id="resetBtn" class="ui-btn">RESET</button>
+    <button id="captureBtn" class="ui-btn">CAPTURE</button>
+    <div id="status">SOURCE: OBJECT</div>
+  </div>
+
+  <video id="video" autoplay playsinline muted></video>
+
+  <script>
+    if (new URLSearchParams(location.search).has("noui")) {
+      document.getElementById("ui").style.display = "none";
+      const bs = document.getElementById("boot-screen");
+      if (bs) bs.style.display = "none";
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

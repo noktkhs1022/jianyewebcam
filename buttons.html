@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: "VT323", monospace;
+    }
+
+    #ui {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 8px;
+    }
+
+    .ui-btn {
+      appearance: none;
+      border: 1px solid rgba(0, 0, 0, 0.9);
+      background: rgba(255, 255, 255, 0.92);
+      color: black;
+      font-family: "VT323", monospace;
+      font-size: 10px;
+      line-height: 1;
+      padding: 2px 4px 2px;
+      cursor: pointer;
+      border-radius: 0;
+      box-shadow: none;
+      letter-spacing: 0.02em;
+    }
+
+    .ui-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    #status {
+      font-size: 10px;
+      line-height: 1;
+      color: black;
+      letter-spacing: 0.02em;
+      padding-top: 1px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <button id="cameraBtn" class="ui-btn">CAMERA</button>
+    <button id="resetBtn" class="ui-btn">RESET</button>
+    <button id="captureBtn" class="ui-btn">CAPTURE</button>
+    <div id="status">SOURCE: OBJECT</div>
+  </div>
+
+  <script>
+    const cameraBtn = document.getElementById("cameraBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const captureBtn = document.getElementById("captureBtn");
+    const statusEl = document.getElementById("status");
+
+    const bc = new BroadcastChannel("jianye-webcam");
+
+    cameraBtn.addEventListener("click", () => {
+      bc.postMessage({ action: "toggleCamera" });
+    });
+
+    resetBtn.addEventListener("click", () => {
+      bc.postMessage({ action: "reset" });
+    });
+
+    captureBtn.addEventListener("click", () => {
+      bc.postMessage({ action: "capture" });
+    });
+
+    bc.onmessage = (e) => {
+      const data = e.data;
+      if (!data || data.type !== "update") return;
+      if (data.btnText) cameraBtn.textContent = data.btnText;
+      if (data.statusText) statusEl.textContent = data.statusText;
+    };
+  </script>
+</body>
+</html>
