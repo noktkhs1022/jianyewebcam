@@ -973,8 +973,9 @@ function captureCanvas() {
   const logoImg = document.querySelector("#logo-br img");
   if (logoImg && logoImg.complete) {
     const canvasScale = asciiCanvas.width / window.innerWidth;
+    const isPortrait = window.innerHeight > window.innerWidth;
     const logoSize = Math.round(50 * canvasScale);
-    const margin = Math.round(40 * canvasScale);
+    const margin = Math.round((isPortrait ? 20 : 40) * canvasScale);
     const lx = offscreen.width - margin - logoSize;
     const ly = offscreen.height - margin - logoSize;
     ctx.drawImage(logoImg, lx, ly, logoSize, logoSize);
