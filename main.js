@@ -816,15 +816,18 @@ function drawCoordOverlay(timeSec, sourceMode) {
   const filled = Math.round(proximity * 8);
   const bar = "\u2588".repeat(filled) + "\u2591".repeat(8 - filled);
 
-  let lines, ly;
+  let lines, ly, textAlign, lx2;
 
   if (isPortrait) {
-    // 縦画面: 3行コンパクト、画面下部（ボタン直上）に配置
-    ly = h - Math.round(130 * dpr);
+    // 縦画面: 3行コンパクト、右上に配置（textAlign: right）
+    const w = asciiCanvas.width;
+    ly = margin;
+    lx2 = w - margin;
     lines = [
       flashOn ? "\u26A0 PROXIMITY ALERT" : "\u25C8 TARGET ACQUIRED",
-      `X:${String(cx).padStart(8)}  Y:${String(cy).padStart(8)}  Z:${String(cz).padStart(8)}`,
-      `DIST:${String(dist).padStart(9)}m   PROX [${bar}]`,
+      `X:${String(cx).padStart(8)}  Y:${String(cy).padStart(8)}`,
+      `Z:${String(cz).padStart(8)}  DIST:${String(dist).padStart(7)}m`,
+      `PROX [${bar}]`,
     ];
   } else {
     // PC: 9行、左中央に配置
@@ -844,16 +847,28 @@ function drawCoordOverlay(timeSec, sourceMode) {
 
   asciiCtx.save();
   asciiCtx.font = `${fs}px "VT323", monospace`;
-  asciiCtx.textAlign = "left";
   asciiCtx.textBaseline = "top";
 
-  for (const line of lines) {
-    const isHeader = line.includes("ACQUIRED") || line.includes("ALERT");
-    asciiCtx.fillStyle = isHeader && flashOn
-      ? `rgba(180,20,20,0.88)`
-      : `rgba(0,0,0,0.78)`;
-    asciiCtx.fillText(line, lx, ly);
-    ly += lh;
+  if (isPortrait) {
+    asciiCtx.textAlign = "right";
+    for (const line of lines) {
+      const isHeader = line.includes("ACQUIRED") || line.includes("ALERT");
+      asciiCtx.fillStyle = isHeader && flashOn
+        ? `rgba(180,20,20,0.88)`
+        : `rgba(0,0,0,0.78)`;
+      asciiCtx.fillText(line, lx2, ly);
+      ly += lh;
+    }
+  } else {
+    asciiCtx.textAlign = "left";
+    for (const line of lines) {
+      const isHeader = line.includes("ACQUIRED") || line.includes("ALERT");
+      asciiCtx.fillStyle = isHeader && flashOn
+        ? `rgba(180,20,20,0.88)`
+        : `rgba(0,0,0,0.78)`;
+      asciiCtx.fillText(line, lx, ly);
+      ly += lh;
+    }
   }
   asciiCtx.restore();
 }
