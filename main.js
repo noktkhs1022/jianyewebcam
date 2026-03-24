@@ -79,6 +79,9 @@ const state = {
 
   // 近接アラート
   proxAlert: false,
+
+  // 高解像度キャプチャ中フラグ
+  captureMode: false,
 };
 
 // =====================================================
@@ -659,9 +662,11 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   asciiCtx.clearRect(0, 0, w, h);
   if (!imageSource) return;
 
-  const baseCols = sourceMode === "camera"
-    ? (IS_MOBILE ? asciiConfig.cameraColumnsMobile : asciiConfig.cameraColumns)
-    : (IS_MOBILE ? asciiConfig.objectColumnsMobile : asciiConfig.objectColumns);
+  const baseCols = state.captureMode
+    ? (sourceMode === "camera" ? asciiConfig.cameraColumns : asciiConfig.objectColumns)
+    : (sourceMode === "camera"
+      ? (IS_MOBILE ? asciiConfig.cameraColumnsMobile : asciiConfig.cameraColumns)
+      : (IS_MOBILE ? asciiConfig.objectColumnsMobile : asciiConfig.objectColumns));
 
   const maxColsReduction = sourceMode === "camera" ? asciiConfig.maxColsReductionCamera : asciiConfig.maxColsReductionObject;
   const cols = Math.max(24, Math.round(baseCols * (1 - proximity01 * maxColsReduction)));
@@ -926,6 +931,36 @@ if (bc) {
 // CAPTURE
 // =====================================================
 function captureCanvas() {
+  // 高解像度キャプチャ: canvasを3倍サイズに拡大して再描画
+  const CAPTURE_SCALE = 3;
+  const origW = asciiCanvas.width;
+  const origH = asciiCanvas.height;
+
+  asciiCanvas.width = Math.round(window.innerWidth * CAPTURE_SCALE);
+  asciiCanvas.height = Math.round(window.innerHeight * CAPTURE_SCALE);
+
+  state.captureMode = true;
+  const elapsed = clock.getElapsedTime();
+  if (state.source === "object") {
+    drawAsciiFromSource({
+      imageSource: renderer.domElement,
+      sourceMode: "object",
+      faceBoxNorm: null,
+      proximity01: state.objectProximity01,
+      timeSec: elapsed,
+    });
+  } else {
+    drawAsciiFromSource({
+      imageSource: personCanvas,
+      sourceMode: "camera",
+      faceBoxNorm: state.faceBoxNorm,
+      proximity01: state.zoom01,
+      timeSec: elapsed,
+    });
+  }
+  state.captureMode = false;
+
+  // 白背景に合成
   const offscreen = document.createElement("canvas");
   offscreen.width = asciiCanvas.width;
   offscreen.height = asciiCanvas.height;
@@ -944,6 +979,10 @@ function captureCanvas() {
     const ly = offscreen.height - margin - logoSize;
     ctx.drawImage(logoImg, lx, ly, logoSize, logoSize);
   }
+
+  // canvasを元のサイズに戻す
+  asciiCanvas.width = origW;
+  asciiCanvas.height = origH;
 
   const dataURL = offscreen.toDataURL("image/png");
   const a = document.createElement("a");
