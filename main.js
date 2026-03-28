@@ -974,7 +974,8 @@ function captureCanvas() {
   if (logoImg && logoImg.complete) {
     const canvasScale = asciiCanvas.width / window.innerWidth;
     const isPortrait = window.innerHeight > window.innerWidth;
-    const logoSize = Math.round(50 * canvasScale);
+    const logoCSS = IS_MOBILE ? 36 : 50;
+    const logoSize = Math.round(logoCSS * canvasScale);
     const margin = Math.round((isPortrait ? 20 : 40) * canvasScale);
     const lx = offscreen.width - margin - logoSize;
     const ly = offscreen.height - margin - logoSize;
