@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+
+const W = () => window.innerWidth;
+const H = () => window.innerHeight;
+
+// ─── Renderer ───────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(W(), H());
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+// ─── Scene / Camera ─────────────────────────────────────
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, W() / H(), 0.1, 100);
+camera.position.set(0, 0.3, 5.0);
+camera.lookAt(0, 0.3, 0);
+
+// ─── Lighting ───────────────────────────────────────────
+// Ambient（全体に均一な柔らかい光）
+const ambient = new THREE.AmbientLight(0xffffff, 1.4);
+scene.add(ambient);
+
+// Key light（正面斜め上から）
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
+key.position.set(1.5, 4, 3);
+scene.add(key);
+
+// Fill light（左から）
+const fill = new THREE.DirectionalLight(0xffeedd, 0.7);
+fill.position.set(-3, 1, 2);
+scene.add(fill);
+
+// Rim light（後ろから輪郭を浮かせる）
+const rim = new THREE.DirectionalLight(0xffffff, 0.5);
+rim.position.set(0, 2, -4);
+scene.add(rim);
+
+// Bottom fill（下からの跳ね返り光）
+const bottom = new THREE.DirectionalLight(0xffffff, 0.3);
+bottom.position.set(0, -3, 1);
+scene.add(bottom);
+
+// ─── Bone refs ──────────────────────────────────────────
+let headBone = null, neckBone = null, spineBone = null;
+let shoulderL = null, shoulderR = null, faceBone = null;
+
+// ─── Interaction state ──────────────────────────────────
+const mouse    = { x: 0, y: 0 };   // raw normalized (-1 to 1)
+const current  = { rx: 0, ry: 0 }; // lerped current rotation
+
+// ─── Load model ─────────────────────────────────────────
+const loader = new GLTFLoader();
+loader.load('./model.glb', (gltf) => {
+  const model = gltf.scene;
+  scene.add(model);
+
+  // ボーン取得
+  model.traverse((obj) => {
+    if (!obj.isBone) return;
+    const n = obj.name;
+    if (n === 'Head')       headBone   = obj;
+    if (n === 'Neck')       neckBone   = obj;
+    if (n === 'Spine')      spineBone  = obj;
+    if (n === 'Shoulder-L') shoulderL  = obj;
+    if (n === 'Shoulder-R') shoulderR  = obj;
+    if (n === 'Face')       faceBone   = obj;
+  });
+
+  // バウンディングボックスでセンタリング
+  const box    = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const size   = box.getSize(new THREE.Vector3());
+
+  model.position.sub(center);
+  // 少し上に寄せて頭部をフレームに収める
+  model.position.y += size.y * 0.1;
+});
+
+// ─── Input ──────────────────────────────────────────────
+window.addEventListener('mousemove', (e) => {
+  mouse.x =  (e.clientX / W()) * 2 - 1;
+  mouse.y = -((e.clientY / H()) * 2 - 1);
+});
+
+window.addEventListener('touchmove', (e) => {
+  const t = e.touches[0];
+  mouse.x =  (t.clientX / W()) * 2 - 1;
+  mouse.y = -((t.clientY / H()) * 2 - 1);
+}, { passive: true });
+
+// ─── Noise helper（疑似ランダム揺れ）───────────────────
+function multiNoise(t, baseFreq, phase = 0) {
+  return (
+    Math.sin(t * baseFreq          + phase) * 0.50 +
+    Math.sin(t * baseFreq * 1.618  + phase * 1.3) * 0.30 +
+    Math.sin(t * baseFreq * 2.414  + phase * 0.7) * 0.20
+  );
+}
+
+// ─── Animate ────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // ── マウス/タッチ追従（スムーズlerp）
+  const targetRy = mouse.x * 0.30;  // 水平 ±~17度
+  const targetRx = mouse.y * 0.12;  // 垂直 ±~7度
+
+  const LERP = 0.035;
+  current.ry += (targetRy - current.ry) * LERP;
+  current.rx += (targetRx - current.rx) * LERP;
+
+  // ── 呼吸（周期 ~4.8秒）
+  const breathA = Math.sin(t * 1.31);               // メインサイクル
+  const breathB = Math.sin(t * 0.655);              // 1オクターブ下（ゆっくり）
+  const breath  = breathA * 0.65 + breathB * 0.35; // ブレンド
+
+  // ── Head
+  if (headBone) {
+    headBone.rotation.y = current.ry + multiNoise(t, 0.28, 0.0) * 0.012;
+    headBone.rotation.x = current.rx + multiNoise(t, 0.35, 1.1) * 0.007;
+    headBone.rotation.z =              multiNoise(t, 0.22, 2.3) * 0.010;
+  }
+
+  // ── Neck（Headの40%追従）
+  if (neckBone) {
+    neckBone.rotation.y = current.ry * 0.40 + multiNoise(t, 0.28, 0.0) * 0.005;
+    neckBone.rotation.x = current.rx * 0.30 + multiNoise(t, 0.35, 1.1) * 0.004;
+    neckBone.rotation.z =                     multiNoise(t, 0.22, 2.3) * 0.005;
+  }
+
+  // ── Spine（呼吸 + アイドル）
+  if (spineBone) {
+    spineBone.position.y  = breath * 0.005;         // 上下に微かに浮く
+    spineBone.rotation.x  = breath * 0.006;         // 前後に微かに傾く
+    spineBone.rotation.z  = multiNoise(t, 0.18, 3.5) * 0.007; // 体幹の微揺れ
+  }
+
+  // ── Shoulders（呼吸で肩が上がる）
+  if (shoulderL) shoulderL.rotation.z =  breath * 0.018;
+  if (shoulderR) shoulderR.rotation.z = -breath * 0.018;
+
+  // ── Face（表情筋的な微動）
+  if (faceBone) {
+    faceBone.rotation.x = multiNoise(t, 0.40, 4.2) * 0.004;
+  }
+
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// ─── Resize ─────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = W() / H();
+  camera.updateProjectionMatrix();
+  renderer.setSize(W(), H());
+});
+</script>
+</body>
+</html>
