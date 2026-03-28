@@ -264,7 +264,7 @@ function animate() {
   // トラッキング量（アイドル中はゼロへ収束）
   const tr = idleState === 'track' ? 1.0 : 0.0;
   const tgtRy = mouse.x  * 0.50 * tr + idleTgt.ry;
-  const tgtRx = -mouse.y * 0.28 * tr + idleTgt.rx - 0.08;
+  const tgtRx = -mouse.y * 0.28 * tr + idleTgt.rx + 0.08;
   const tgtRz = idleTgt.rz;
 
   // Spring-damper
