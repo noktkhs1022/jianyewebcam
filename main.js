@@ -226,7 +226,7 @@ function drawHudOnCanvas() {
 // =====================================================
 const PERF_CONFIG = {
   high: {
-    pixelRatio: Math.min(window.devicePixelRatio, IS_MOBILE ? 2 : 1.5),
+    pixelRatio: Math.min(window.devicePixelRatio, IS_MOBILE ? 3 : 1.5),
     mpFps: IS_MOBILE ? 12 : 22,
     asciiSkip: IS_MOBILE ? 2 : 1,
     threeAntiAlias: true,
