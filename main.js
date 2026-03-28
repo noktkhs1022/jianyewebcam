@@ -14,11 +14,13 @@ function detectPerformanceTier() {
   const mem = navigator.deviceMemory;
   if (mem !== undefined && mem <= 2) return "low";
 
+  // DPR≥3は高性能機（iPhone 12以降など）
+  if (window.devicePixelRatio >= 3) return "high";
+
   // コア数（目安）
   const cores = navigator.hardwareConcurrency || 2;
   if (cores <= 2) return "low";
-  if (cores <= 4) return "mid";
-  return "high";
+  return "mid";
 }
 
 const PERF = detectPerformanceTier(); // "high" | "mid" | "low"
@@ -232,7 +234,7 @@ const PERF_CONFIG = {
     threeAntiAlias: true,
   },
   mid: {
-    pixelRatio: Math.min(window.devicePixelRatio, 1.0),
+    pixelRatio: Math.min(window.devicePixelRatio, 2.0),
     mpFps: 12,
     asciiSkip: 2,       // 1フレームおきに描画
     threeAntiAlias: false,
@@ -260,7 +262,7 @@ const asciiConfig = {
   objectColumns: Math.round(162 * (IS_MOBILE ? MOBILE_SCALE : 1)),
   objectColumnsMobile: Math.round(84 * MOBILE_SCALE),
   cameraColumns: Math.round(152 * (IS_MOBILE ? MOBILE_SCALE : 1)),
-  cameraColumnsMobile: Math.round(54 * MOBILE_SCALE),
+  cameraColumnsMobile: Math.round(72 * MOBILE_SCALE),
 
   fontFamily: `"VT323", monospace`,
   baseFontSizeScale: IS_MOBILE ? 0.78 : 0.60,
