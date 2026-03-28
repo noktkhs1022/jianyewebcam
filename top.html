@@ -29,8 +29,8 @@ document.body.appendChild(renderer.domElement);
 // ─── Scene / Camera ─────────────────────────────────────
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, W() / H(), 0.1, 100);
-camera.position.set(0, 0.3, 5.0);
-camera.lookAt(0, 0.3, 0);
+camera.position.set(0, 0.9, 5.8);
+camera.lookAt(0, 0.9, 0);
 
 // ─── Lighting ───────────────────────────────────────────
 // Ambient（全体に均一な柔らかい光）
@@ -83,14 +83,18 @@ loader.load('./model.glb', (gltf) => {
     if (n === 'Face')       faceBone   = obj;
   });
 
-  // バウンディングボックスでセンタリング
+  // main.js と同じスケール・センタリング
   const box    = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
   const size   = box.getSize(new THREE.Vector3());
 
-  model.position.sub(center);
-  // 少し上に寄せて頭部をフレームに収める
-  model.position.y += size.y * 0.1;
+  const targetHeight = window.innerWidth < 768 ? 3.15 : 3.55;
+  model.scale.setScalar(targetHeight / Math.max(size.y, 0.0001));
+
+  // スケール後に再計算してセンタリング
+  const box2   = new THREE.Box3().setFromObject(model);
+  const center2 = box2.getCenter(new THREE.Vector3());
+  model.position.sub(center2);
 });
 
 // ─── Input ──────────────────────────────────────────────
