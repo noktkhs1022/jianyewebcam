@@ -14,56 +14,72 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 
-const W = () => window.innerWidth;
-const H = () => window.innerHeight;
+const IS_MOBILE = window.innerWidth < 768;
 
 // ─── Renderer ───────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(W(), H());
+renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-// ─── Scene / Camera ─────────────────────────────────────
+// ─── Scene ──────────────────────────────────────────────
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(32, W() / H(), 0.1, 100);
+
+// ─── Camera（main.jsと同じ値）───────────────────────────
+const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(0, 0.9, 5.8);
-camera.lookAt(0, 0.9, 0);
 
-// ─── Lighting ───────────────────────────────────────────
-// Ambient（全体に均一な柔らかい光）
-const ambient = new THREE.AmbientLight(0xffffff, 1.4);
-scene.add(ambient);
-
-// Key light（正面斜め上から）
-const key = new THREE.DirectionalLight(0xffffff, 2.2);
-key.position.set(1.5, 4, 3);
-scene.add(key);
-
-// Fill light（左から）
-const fill = new THREE.DirectionalLight(0xffeedd, 0.7);
-fill.position.set(-3, 1, 2);
-scene.add(fill);
-
-// Rim light（後ろから輪郭を浮かせる）
-const rim = new THREE.DirectionalLight(0xffffff, 0.5);
-rim.position.set(0, 2, -4);
-scene.add(rim);
-
-// Bottom fill（下からの跳ね返り光）
-const bottom = new THREE.DirectionalLight(0xffffff, 0.3);
-bottom.position.set(0, -3, 1);
-scene.add(bottom);
+// ─── Lighting（main.jsと同じ値）─────────────────────────
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.35);
+scene.add(ambientLight);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.55);
+keyLight.position.set(2.8, 3.0, 4.0);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.75);
+fillLight.position.set(-2.0, 1.5, 2.8);
+scene.add(fillLight);
 
 // ─── Bone refs ──────────────────────────────────────────
 let headBone = null, neckBone = null, spineBone = null;
-let shoulderL = null, shoulderR = null, faceBone = null;
+let shoulderL = null, shoulderR = null;
+let idleBaseY = 0;
 
-// ─── Interaction state ──────────────────────────────────
-const mouse    = { x: 0, y: 0 };   // raw normalized (-1 to 1)
-const current  = { rx: 0, ry: 0 }; // lerped current rotation
+// ─── Input ──────────────────────────────────────────────
+const mouse   = { x: 0, y: 0 };
+const current = { rx: 0, ry: 0 };
+
+window.addEventListener('mousemove', (e) => {
+  mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+  mouse.y = -((e.clientY / window.innerHeight) * 2 - 1);
+});
+window.addEventListener('touchmove', (e) => {
+  const t = e.touches[0];
+  mouse.x =  (t.clientX / window.innerWidth)  * 2 - 1;
+  mouse.y = -((t.clientY / window.innerHeight) * 2 - 1);
+}, { passive: true });
+
+// ─── frameModel（main.jsと完全に同じ）──────────────────
+function frameModel(obj) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  obj.position.x -= center.x;
+  obj.position.y -= center.y;
+  obj.position.z -= center.z;
+  const targetHeight = IS_MOBILE ? 3.15 : 3.55;
+  obj.scale.setScalar(targetHeight / Math.max(size.y, 0.0001));
+  const box2 = new THREE.Box3().setFromObject(obj);
+  const center2 = box2.getCenter(new THREE.Vector3());
+  const size2 = box2.getSize(new THREE.Vector3());
+  obj.position.x -= center2.x;
+  obj.position.y -= center2.y;
+  obj.position.z -= center2.z;
+  obj.position.y = -size2.y * 0.18;
+  idleBaseY = obj.position.y;
+}
 
 // ─── Load model ─────────────────────────────────────────
 const loader = new GLTFLoader();
@@ -71,46 +87,25 @@ loader.load('./model.glb', (gltf) => {
   const model = gltf.scene;
   scene.add(model);
 
-  // ボーン取得
   model.traverse((obj) => {
     if (!obj.isBone) return;
     const n = obj.name;
-    if (n === 'Head')       headBone   = obj;
-    if (n === 'Neck')       neckBone   = obj;
-    if (n === 'Spine')      spineBone  = obj;
-    if (n === 'Shoulder-L') shoulderL  = obj;
-    if (n === 'Shoulder-R') shoulderR  = obj;
-    if (n === 'Face')       faceBone   = obj;
+    if (n === 'Head')       headBone  = obj;
+    if (n === 'Neck')       neckBone  = obj;
+    if (n === 'Spine')      spineBone = obj;
+    if (n === 'Shoulder-L') shoulderL = obj;
+    if (n === 'Shoulder-R') shoulderR = obj;
   });
 
-  // main.js と完全に同じ手順
-  const box    = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  const size   = box.getSize(new THREE.Vector3());
-
-  const targetHeight = window.innerWidth < 768 ? 3.15 : 3.55;
-  model.scale.setScalar(targetHeight / Math.max(size.y, 0.0001));
-  model.position.sub(center);
+  frameModel(model);
 });
 
-// ─── Input ──────────────────────────────────────────────
-window.addEventListener('mousemove', (e) => {
-  mouse.x =  (e.clientX / W()) * 2 - 1;
-  mouse.y = -((e.clientY / H()) * 2 - 1);
-});
-
-window.addEventListener('touchmove', (e) => {
-  const t = e.touches[0];
-  mouse.x =  (t.clientX / W()) * 2 - 1;
-  mouse.y = -((t.clientY / H()) * 2 - 1);
-}, { passive: true });
-
-// ─── Noise helper（疑似ランダム揺れ）───────────────────
-function multiNoise(t, baseFreq, phase = 0) {
+// ─── Noise ──────────────────────────────────────────────
+function multiNoise(t, freq, phase) {
   return (
-    Math.sin(t * baseFreq          + phase) * 0.50 +
-    Math.sin(t * baseFreq * 1.618  + phase * 1.3) * 0.30 +
-    Math.sin(t * baseFreq * 2.414  + phase * 0.7) * 0.20
+    Math.sin(t * freq         + phase) * 0.50 +
+    Math.sin(t * freq * 1.618 + phase * 1.3) * 0.30 +
+    Math.sin(t * freq * 2.414 + phase * 0.7) * 0.20
   );
 }
 
@@ -121,48 +116,30 @@ function animate() {
   requestAnimationFrame(animate);
   const t = clock.getElapsedTime();
 
-  // ── マウス/タッチ追従（スムーズlerp）
-  const targetRy = mouse.x * 0.30;  // 水平 ±~17度
-  const targetRx = mouse.y * 0.12;  // 垂直 ±~7度
-
+  // マウス/タッチ追従
   const LERP = 0.035;
-  current.ry += (targetRy - current.ry) * LERP;
-  current.rx += (targetRx - current.rx) * LERP;
+  current.ry += (mouse.x * 0.30 - current.ry) * LERP;
+  current.rx += (mouse.y * 0.12 - current.rx) * LERP;
 
-  // ── 呼吸（周期 ~4.8秒）
-  const breathA = Math.sin(t * 1.31);               // メインサイクル
-  const breathB = Math.sin(t * 0.655);              // 1オクターブ下（ゆっくり）
-  const breath  = breathA * 0.65 + breathB * 0.35; // ブレンド
+  // 呼吸（周期~4.8秒）
+  const breath = Math.sin(t * 1.31) * 0.65 + Math.sin(t * 0.655) * 0.35;
 
-  // ── Head
   if (headBone) {
     headBone.rotation.y = current.ry + multiNoise(t, 0.28, 0.0) * 0.012;
     headBone.rotation.x = current.rx + multiNoise(t, 0.35, 1.1) * 0.007;
     headBone.rotation.z =              multiNoise(t, 0.22, 2.3) * 0.010;
   }
-
-  // ── Neck（Headの40%追従）
   if (neckBone) {
     neckBone.rotation.y = current.ry * 0.40 + multiNoise(t, 0.28, 0.0) * 0.005;
-    neckBone.rotation.x = current.rx * 0.30 + multiNoise(t, 0.35, 1.1) * 0.004;
-    neckBone.rotation.z =                     multiNoise(t, 0.22, 2.3) * 0.005;
+    neckBone.rotation.x = current.rx * 0.30;
   }
-
-  // ── Spine（呼吸 + アイドル）
   if (spineBone) {
-    spineBone.position.y  = breath * 0.005;         // 上下に微かに浮く
-    spineBone.rotation.x  = breath * 0.006;         // 前後に微かに傾く
-    spineBone.rotation.z  = multiNoise(t, 0.18, 3.5) * 0.007; // 体幹の微揺れ
+    spineBone.position.y = breath * 0.005;
+    spineBone.rotation.x = breath * 0.006;
+    spineBone.rotation.z = multiNoise(t, 0.18, 3.5) * 0.007;
   }
-
-  // ── Shoulders（呼吸で肩が上がる）
   if (shoulderL) shoulderL.rotation.z =  breath * 0.018;
   if (shoulderR) shoulderR.rotation.z = -breath * 0.018;
-
-  // ── Face（表情筋的な微動）
-  if (faceBone) {
-    faceBone.rotation.x = multiNoise(t, 0.40, 4.2) * 0.004;
-  }
 
   renderer.render(scene, camera);
 }
@@ -171,9 +148,9 @@ animate();
 
 // ─── Resize ─────────────────────────────────────────────
 window.addEventListener('resize', () => {
-  camera.aspect = W() / H();
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(W(), H());
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
 </script>
 </body>
