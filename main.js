@@ -981,6 +981,24 @@ function captureCanvas() {
     ctx.drawImage(logoImg, lx, ly, logoSize, logoSize);
   }
 
+  // フィルムグレインを合成
+  const noiseCanvas = document.createElement("canvas");
+  noiseCanvas.width = offscreen.width;
+  noiseCanvas.height = offscreen.height;
+  const noiseCtx = noiseCanvas.getContext("2d");
+  const noiseData = noiseCtx.createImageData(offscreen.width, offscreen.height);
+  for (let i = 0; i < noiseData.data.length; i += 4) {
+    const v = Math.floor(Math.random() * 256);
+    noiseData.data[i] = v;
+    noiseData.data[i + 1] = v;
+    noiseData.data[i + 2] = v;
+    noiseData.data[i + 3] = 255;
+  }
+  noiseCtx.putImageData(noiseData, 0, 0);
+  ctx.globalAlpha = 0.055;
+  ctx.drawImage(noiseCanvas, 0, 0);
+  ctx.globalAlpha = 1.0;
+
   // canvasを元のサイズに戻す
   asciiCanvas.width = origW;
   asciiCanvas.height = origH;
