@@ -147,8 +147,6 @@ function animate() {
     spineBone.rotation.x = breath * 0.006;
     spineBone.rotation.z = multiNoise(t, 0.18, 3.5) * 0.007;
   }
-  if (shoulderL) shoulderL.rotation.z =  breath * 0.018;
-  if (shoulderR) shoulderR.rotation.z = -breath * 0.018;
 
   renderer.render(scene, camera);
 }
