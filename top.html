@@ -37,8 +37,8 @@ document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 
 // ─── Camera（main.jsと同じ値）───────────────────────────
-const camera = new THREE.PerspectiveCamera(28, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 1.4, 9.0);
+const camera = new THREE.PerspectiveCamera(22, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 1.0, 13.0);
 camera.lookAt(0, 0.2, 0);
 
 // ─── Lighting（main.jsと同じ値）─────────────────────────
