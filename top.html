@@ -52,6 +52,72 @@ scene.add(fillLight);
 // ─── Bones ───────────────────────────────────────────────
 let headBone = null, neckBone = null;
 
+// ─── Wire overlay ────────────────────────────────────────
+const texMeshes  = []; // { mesh, mats[] }
+const wireMeshes = []; // THREE.SkinnedMesh (wireframe)
+
+function buildWireOverlay(model) {
+  model.traverse((obj) => {
+    if (!obj.isSkinnedMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach(m => { m.transparent = true; m.opacity = 1; });
+    texMeshes.push({ mesh: obj, mats });
+
+    const wireMat = new THREE.MeshBasicMaterial({
+      color: 0x333333,
+      wireframe: true,
+      transparent: true,
+      opacity: 0
+    });
+    const wm = new THREE.SkinnedMesh(obj.geometry, wireMat);
+    wm.bind(obj.skeleton, obj.bindMatrix);
+    wm.position.copy(obj.position);
+    wm.rotation.copy(obj.rotation);
+    wm.scale.copy(obj.scale);
+    obj.parent.add(wm);
+    wireMeshes.push(wm);
+  });
+}
+
+// ─── Texture↔Wire cycle ──────────────────────────────────
+// tex(15s) → fadeToWire(1.5s) → wire(5s) → fadeToTex(1.5s) → ...
+const FADE_DUR  = 1.5;
+const TEX_DUR   = 15;
+const WIRE_DUR  = 5;
+let   cycleState = 'tex';
+let   cycleStart = 0;
+
+function updateCycle(t) {
+  if (texMeshes.length === 0) return;
+  const p = t - cycleStart;
+  let texA = 1, wireA = 0;
+
+  switch (cycleState) {
+    case 'tex':
+      texA = 1; wireA = 0;
+      if (p >= TEX_DUR) { cycleState = 'fadeToWire'; cycleStart = t; }
+      break;
+    case 'fadeToWire': {
+      const r = easeInOut(Math.min(p / FADE_DUR, 1));
+      texA = 1 - r; wireA = r;
+      if (p >= FADE_DUR) { cycleState = 'wire'; cycleStart = t; }
+      break;
+    }
+    case 'wire':
+      texA = 0; wireA = 1;
+      if (p >= WIRE_DUR) { cycleState = 'fadeToTex'; cycleStart = t; }
+      break;
+    case 'fadeToTex': {
+      const r = easeInOut(Math.min(p / FADE_DUR, 1));
+      texA = r; wireA = 1 - r;
+      if (p >= FADE_DUR) { cycleState = 'tex'; cycleStart = t; }
+      break;
+    }
+  }
+  texMeshes.forEach(({ mats }) => mats.forEach(m => { m.opacity = texA; }));
+  wireMeshes.forEach(wm => { wm.material.opacity = wireA; });
+}
+
 // ─── Spring-damper ───────────────────────────────────────
 const cur = { ry: 0, rx: 0, rz: 0 };
 const vel = { ry: 0, rx: 0, rz: 0 };
@@ -177,6 +243,8 @@ new GLTFLoader().load('./model.glb', (gltf) => {
     if (n === 'Neck') neckBone = obj;
   });
   frameModel(model);
+  buildWireOverlay(model);
+  cycleStart = clock.getElapsedTime();
 });
 
 // ─── Noise ───────────────────────────────────────────────
@@ -191,6 +259,7 @@ function animate() {
   const t = clock.getElapsedTime();
 
   updateIdle(t);
+  updateCycle(t);
 
   // トラッキング量（アイドル中はゼロへ収束）
   const tr = idleState === 'track' ? 1.0 : 0.0;
@@ -225,7 +294,7 @@ function animate() {
   const hbPhase = (t % 0.923) / 0.923;
   const lub = Math.exp(-Math.pow(hbPhase - 0.05, 2) / 0.0015);
   const dub = Math.exp(-Math.pow(hbPhase - 0.22, 2) / 0.0025) * 0.55;
-  const hb  = (lub + dub) * 0.09; // 1% of z=9.0
+  const hb  = (lub + dub) * 0.27; // 3% of z=9.0
 
   // カメラ（呼吸 + 心拍）
   camera.position.y = 1.2 + breath * 0.010;
