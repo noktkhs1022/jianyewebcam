@@ -133,20 +133,21 @@ function animate() {
   // 呼吸（周期~4.8秒）
   const breath = Math.sin(t * 1.31) * 0.65 + Math.sin(t * 0.655) * 0.35;
 
+  // Head：マウス追従 + 極小アイドル
   if (headBone) {
-    headBone.rotation.y = current.ry + multiNoise(t, 0.28, 0.0) * 0.012;
-    headBone.rotation.x = current.rx + multiNoise(t, 0.35, 1.1) * 0.007;
-    headBone.rotation.z =              multiNoise(t, 0.22, 2.3) * 0.010;
+    headBone.rotation.y = current.ry + multiNoise(t, 0.20, 0.0) * 0.006;
+    headBone.rotation.x = current.rx + multiNoise(t, 0.25, 1.1) * 0.004;
+    headBone.rotation.z =              multiNoise(t, 0.18, 2.3) * 0.004;
   }
+  // Neck：Headの30%追従のみ
   if (neckBone) {
-    neckBone.rotation.y = current.ry * 0.40 + multiNoise(t, 0.28, 0.0) * 0.005;
-    neckBone.rotation.x = current.rx * 0.30;
+    neckBone.rotation.y = current.ry * 0.30;
+    neckBone.rotation.x = current.rx * 0.20;
   }
-  if (spineBone) {
-    spineBone.position.y = breath * 0.005;
-    spineBone.rotation.x = breath * 0.006;
-    spineBone.rotation.z = multiNoise(t, 0.18, 3.5) * 0.007;
-  }
+  // Spine：触らない（バインドポーズを維持）
+
+  // 呼吸感：カメラの微細な上下で表現（ボーン不使用）
+  camera.position.y = 1.0 + breath * 0.012;
 
   renderer.render(scene, camera);
 }
