@@ -140,6 +140,16 @@ window.addEventListener('touchmove', (e) => {
   lastMoveTime = clock.getElapsedTime();
 }, { passive: true });
 
+// ─── postMessage（Wix埋め込み時）────────────────────────
+window.addEventListener('message', (e) => {
+  const d = e.data;
+  if (d && typeof d.mx === 'number' && typeof d.my === 'number') {
+    mouse.x = d.mx;
+    mouse.y = d.my;
+    lastMoveTime = clock.getElapsedTime();
+  }
+});
+
 // ─── Idle state machine ──────────────────────────────────
 // track → curious (2.5s) → idle (6s) → motion → idle → ...
 let idleState    = 'track';
