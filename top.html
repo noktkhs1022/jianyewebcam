@@ -83,18 +83,14 @@ loader.load('./model.glb', (gltf) => {
     if (n === 'Face')       faceBone   = obj;
   });
 
-  // main.js と同じスケール・センタリング
+  // main.js と完全に同じ手順
   const box    = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
   const size   = box.getSize(new THREE.Vector3());
 
   const targetHeight = window.innerWidth < 768 ? 3.15 : 3.55;
   model.scale.setScalar(targetHeight / Math.max(size.y, 0.0001));
-
-  // スケール後に再計算してセンタリング
-  const box2   = new THREE.Box3().setFromObject(model);
-  const center2 = box2.getCenter(new THREE.Vector3());
-  model.position.sub(center2);
+  model.position.sub(center);
 });
 
 // ─── Input ──────────────────────────────────────────────
