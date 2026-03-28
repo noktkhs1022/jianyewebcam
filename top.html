@@ -36,9 +36,9 @@ document.body.appendChild(renderer.domElement);
 
 // ─── Scene / Camera ──────────────────────────────────────
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(22, window.innerWidth / window.innerHeight, 0.1, 200);
-camera.position.set(0, 1.0, 13.0);
-camera.lookAt(0, 0.2, 0);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 1.2, 8.0);
+camera.lookAt(0, 0.5, 0);
 
 // ─── Lighting ────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 1.35));
@@ -155,7 +155,7 @@ function frameModel(obj) {
   obj.position.x -= center.x;
   obj.position.y -= center.y;
   obj.position.z -= center.z;
-  const targetHeight = IS_MOBILE ? 2.0 : 2.5;
+  const targetHeight = IS_MOBILE ? 3.15 : 3.55;
   obj.scale.setScalar(targetHeight / Math.max(size.y, 0.0001));
   const box2   = new THREE.Box3().setFromObject(obj);
   const center2 = box2.getCenter(new THREE.Vector3());
