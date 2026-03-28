@@ -194,8 +194,8 @@ function animate() {
 
   // トラッキング量（アイドル中はゼロへ収束）
   const tr = idleState === 'track' ? 1.0 : 0.0;
-  const tgtRy = mouse.x * 0.50 * tr + idleTgt.ry;
-  const tgtRx = mouse.y * 0.28 * tr + idleTgt.rx;
+  const tgtRy = mouse.x  * 0.50 * tr + idleTgt.ry;
+  const tgtRx = -mouse.y * 0.28 * tr + idleTgt.rx;
   const tgtRz = idleTgt.rz;
 
   // Spring-damper
@@ -221,8 +221,15 @@ function animate() {
     neckBone.rotation.x = cur.rx * 0.20 + noise(t, 0.28, 1.1) * 0.004;
     neckBone.rotation.z = cur.rz * 0.20 + noise(t, 0.18, 2.3) * 0.004;
   }
-  // カメラ呼吸
-  camera.position.y = 1.0 + breath * 0.010;
+  // 心拍（lub-dub、65BPM）
+  const hbPhase = (t % 0.923) / 0.923;
+  const lub = Math.exp(-Math.pow(hbPhase - 0.05, 2) / 0.0015);
+  const dub = Math.exp(-Math.pow(hbPhase - 0.22, 2) / 0.0025) * 0.55;
+  const hb  = (lub + dub) * 0.09; // 1% of z=9.0
+
+  // カメラ（呼吸 + 心拍）
+  camera.position.y = 1.2 + breath * 0.010;
+  camera.position.z = 9.0 - hb;
 
   renderer.render(scene, camera);
 }
