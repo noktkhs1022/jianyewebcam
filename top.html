@@ -51,7 +51,6 @@ scene.add(fillLight);
 
 // ─── Bones ───────────────────────────────────────────────
 let headBone = null, neckBone = null;
-let sakotsuL = null, sakotsuR = null;
 
 // ─── Spring-damper ───────────────────────────────────────
 const cur = { ry: 0, rx: 0, rz: 0 };
@@ -174,10 +173,8 @@ new GLTFLoader().load('./model.glb', (gltf) => {
   model.traverse((obj) => {
     if (!obj.isBone) return;
     const n = obj.name;
-    if (n === 'Head')       headBone = obj;
-    if (n === 'Neck')       neckBone = obj;
-    if (n === 'sakotsu-L')  sakotsuL = obj;
-    if (n === 'Sakotsu-R')  sakotsuR = obj;
+    if (n === 'Head') headBone = obj;
+    if (n === 'Neck') neckBone = obj;
   });
   frameModel(model);
 });
@@ -224,10 +221,6 @@ function animate() {
     neckBone.rotation.x = cur.rx * 0.20;
     neckBone.rotation.z = cur.rz * 0.20;
   }
-  // 鎖骨呼吸（肩の微細な上下）
-  if (sakotsuL) sakotsuL.rotation.z =  breath * 0.018;
-  if (sakotsuR) sakotsuR.rotation.z = -breath * 0.018;
-
   // カメラ呼吸
   camera.position.y = 1.0 + breath * 0.010;
 
