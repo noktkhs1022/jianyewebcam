@@ -35,14 +35,6 @@ document.body.appendChild(renderer.domElement);
 
 // ─── Scene ──────────────────────────────────────────────
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xcccccc); // 診断用グレー背景
-
-// 診断用キューブ（モデルが出なくても確認できる）
-const testCube = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 1, 1),
-  new THREE.MeshStandardMaterial({ color: 0xff0000 })
-);
-scene.add(testCube);
 
 // ─── Camera（main.jsと同じ値）───────────────────────────
 const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 100);
