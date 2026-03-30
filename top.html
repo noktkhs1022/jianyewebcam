@@ -272,23 +272,41 @@ new GLTFLoader().load('./model.glb', (gltf) => {
   });
   frameModel(model);
   buildWireOverlay(model);
+  buildHoverMesh(model);
   cycleStart = clock.getElapsedTime();
 });
 
 // ─── Rain system ─────────────────────────────────────────
-const rainCanvas  = document.getElementById('rain');
-const rainCtx     = rainCanvas.getContext('2d');
-// main.jsと同じFX_SETを使用（輝度マッピング方式）
-const FX_SET      = ' .:-=+*#%@';
-const CHAR_SIZE   = IS_MOBILE ? 13 : 10;
-const LOGO_W_RATIO = IS_MOBILE ? 0.80 : 0.58;
-// モバイルは列を間引いてパフォーマンス確保
-const COL_STEP    = IS_MOBILE ? 2 : 1;
+const rainCanvas   = document.getElementById('rain');
+const rainCtx      = rainCanvas.getContext('2d');
+const FX_SET       = ' .:-=+*#%@';
+const CHAR_SIZE    = IS_MOBILE ? 11 : 8;
+const LOGO_W_RATIO = IS_MOBILE ? 0.82 : 0.65;
 
-let hoverProg  = 0;
-const HOVER_IN  = 1 / 90;
-const HOVER_OUT = 1 / 150;
-const HOVER_TIMEOUT = 3.0;
+let hoverProg = 0;
+const HOVER_IN  = 1 / 50;  // ~0.8s
+const HOVER_OUT = 1 / 100; // ~1.7s
+
+// ── モデルホバー判定（Raycaster）─────────────────────
+const raycaster = new THREE.Raycaster();
+let   hoverMesh  = null;
+
+function buildHoverMesh(model) {
+  const box  = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const ctr  = box.getCenter(new THREE.Vector3());
+  const geo  = new THREE.BoxGeometry(size.x * 0.9, size.y, size.z * 0.9);
+  const mat  = new THREE.MeshBasicMaterial({ visible: false });
+  hoverMesh  = new THREE.Mesh(geo, mat);
+  hoverMesh.position.copy(ctr);
+  scene.add(hoverMesh);
+}
+
+function isHoveringModel() {
+  if (!hoverMesh) return false;
+  raycaster.setFromCamera(new THREE.Vector2(mouse.x, mouse.y), camera);
+  return raycaster.intersectObject(hoverMesh).length > 0;
+}
 
 // ── ロゴマスク ─────────────────────────────────────────
 const logoImg = new Image();
@@ -300,12 +318,13 @@ function buildLogoMask() {
   const lw = W * LOGO_W_RATIO;
   const lh = lw * (logoImg.naturalHeight / logoImg.naturalWidth);
   const lx = (W - lw) / 2;
-  const ly = (H - lh) / 2;
+  // ロゴを画面中央より少し下に配置
+  const ly = H * 0.5 - lh * 0.5;
   const off = document.createElement('canvas');
   off.width = W; off.height = H;
   const c2 = off.getContext('2d');
   c2.drawImage(logoImg, lx, ly, lw, lh);
-  const px = c2.getImageData(0, 0, W, H).data;
+  const px  = c2.getImageData(0, 0, W, H).data;
   const cols = Math.ceil(W / CHAR_SIZE);
   logoMask = new Array(cols).fill(null);
   for (let col = 0; col < cols; col++) {
@@ -313,9 +332,8 @@ function buildLogoMask() {
     let yMin = -1, yMax = -1;
     for (let y = 0; y < H; y++) {
       let hit = false;
-      for (let x = x0; x < x1 && !hit; x++) {
-        if (px[(y * W + x) * 4 + 3] > 32) hit = true;
-      }
+      for (let x = x0; x < x1 && !hit; x++)
+        if (px[(y * W + x) * 4 + 3] > 20) hit = true;
       if (hit) { if (yMin < 0) yMin = y; yMax = y; }
     }
     if (yMin >= 0) logoMask[col] = { yMin, yMax };
@@ -325,23 +343,19 @@ function buildLogoMask() {
 logoImg.onload = () => { logoReady = true; buildLogoMask(); };
 logoImg.src = './jianye-logo-web-bg.png';
 
-// ── ドロップ（輝度マッピング方式）────────────────────
+// ── ドロップ ───────────────────────────────────────────
 let drops = [];
 function initDrops() {
   const cols = Math.ceil(rainCanvas.width / CHAR_SIZE);
   drops = Array.from({ length: cols }, () => ({
-    y:     Math.random() * -rainCanvas.height,
-    // Matrixより大幅に遅く
-    speed: 0.4 + Math.random() * 1.0,
-    len:   10 + Math.floor(Math.random() * 10),
+    y:     Math.random() * -rainCanvas.height * 1.2,
+    speed: 0.5 + Math.random() * 1.2,
+    len:   14 + Math.floor(Math.random() * 12),
   }));
 }
 
-// 輝度→FX_SET文字（headが@、tailが.やスペースへ）
-function fxChar(brightness) {
-  const idx = Math.min(FX_SET.length - 1,
-    Math.floor(brightness * FX_SET.length));
-  return FX_SET[idx];
+function fxChar(b) {
+  return FX_SET[Math.min(FX_SET.length - 1, Math.floor(b * FX_SET.length))];
 }
 
 function resizeRain() {
@@ -352,10 +366,9 @@ function resizeRain() {
 }
 resizeRain();
 
-// ── 雨描画 ─────────────────────────────────────────────
-function updateRain(t) {
-  const sinceMove = t - lastMoveTime;
-  const active    = sinceMove < HOVER_TIMEOUT;
+// ── 雨描画（グリッチ対応）────────────────────────────
+function updateRain() {
+  const active = isHoveringModel();
   hoverProg = active
     ? Math.min(1, hoverProg + HOVER_IN)
     : Math.max(0, hoverProg - HOVER_OUT);
@@ -364,33 +377,41 @@ function updateRain(t) {
   rainCtx.clearRect(0, 0, W, H);
   if (hoverProg <= 0.001) return;
 
-  // 背景を徐々に暗くする
-  rainCtx.fillStyle = `rgba(0,0,0,${hoverProg * 0.75})`;
+  // 背景暗化
+  rainCtx.fillStyle = `rgba(0,0,0,${hoverProg * 0.78})`;
   rainCtx.fillRect(0, 0, W, H);
   if (!logoReady) return;
+
+  // グリッチ強度（遷移中に最大）
+  const gi = Math.sqrt(4 * hoverProg * (1 - hoverProg));
 
   rainCtx.font = `${CHAR_SIZE}px monospace`;
   const cols = Math.ceil(W / CHAR_SIZE);
 
-  for (let c = 0; c < cols && c < drops.length; c += COL_STEP) {
+  for (let c = 0; c < cols && c < drops.length; c++) {
     const d    = drops[c];
     const mask = c < logoMask.length ? logoMask[c] : null;
     d.y += d.speed;
     if (d.y - d.len * CHAR_SIZE > H) {
-      d.y    = -d.len * CHAR_SIZE * (0.5 + Math.random());
-      d.speed = 0.4 + Math.random() * 1.0;
+      d.y    = -d.len * CHAR_SIZE * (0.3 + Math.random() * 0.7);
+      d.speed = 0.5 + Math.random() * 1.2;
     }
+    // グリッチ：列ごとにランダムなxオフセット
+    const xOff = gi > 0.1 && Math.random() < gi * 0.08
+      ? (Math.random() - 0.5) * CHAR_SIZE * 3 : 0;
+
     for (let i = 0; i < d.len; i++) {
       const cy = d.y - i * CHAR_SIZE;
       if (cy < -CHAR_SIZE || cy > H) continue;
-      if (mask && cy >= mask.yMin - CHAR_SIZE && cy <= mask.yMax + CHAR_SIZE) continue;
+      if (mask && cy >= mask.yMin - CHAR_SIZE * 0.5 && cy <= mask.yMax + CHAR_SIZE * 0.5) continue;
 
-      // 輝度マッピング：headが最も濃く、tailへ薄くなる
-      const brightness = Math.max(0, 1 - i / d.len);
-      const ch  = fxChar(brightness);
-      const alpha = brightness * hoverProg * 0.9;
+      // グリッチ：ランダムに@を差し込む
+      const isGlitch = gi > 0.2 && Math.random() < gi * 0.06;
+      const brightness = isGlitch ? 1.0 : Math.max(0, 1 - i / d.len);
+      const ch    = fxChar(brightness);
+      const alpha = Math.min(1, brightness * hoverProg * 0.95 + (isGlitch ? gi * 0.4 : 0));
       rainCtx.fillStyle = `rgba(51,51,51,${alpha})`;
-      rainCtx.fillText(ch, c * CHAR_SIZE, cy);
+      rainCtx.fillText(ch, c * CHAR_SIZE + xOff, cy);
     }
   }
 }
@@ -414,7 +435,7 @@ function animate() {
 
   updateIdle(t);
   updateCycle(t);
-  updateRain(t);
+  updateRain();
 
   // トラッキング量（アイドル中はゼロへ収束）
   const tr = idleState === 'track' ? 1.0 : 0.0;
