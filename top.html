@@ -7,6 +7,12 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
     canvas { display: block; }
+    #rain {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
   </style>
   <script type="importmap">
   {
@@ -18,6 +24,7 @@
   </script>
 </head>
 <body>
+<canvas id="rain"></canvas>
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -89,6 +96,17 @@ let   cycleStart = 0;
 
 function updateCycle(t) {
   if (texMeshes.length === 0) return;
+
+  // ホバー中はワイヤーフレームを優先
+  if (hoverProg > 0.001) {
+    const wireA = Math.min(1, hoverProg * 2.5);
+    const texA  = 1 - wireA;
+    texMeshes.forEach(({ mats }) => mats.forEach(m => { m.opacity = texA; }));
+    wireMeshes.forEach(wm => { wm.material.opacity = wireA; });
+    cycleState = 'tex'; cycleStart = t; // ホバー終了後はtexから再開
+    return;
+  }
+
   const p = t - cycleStart;
   let texA = 1, wireA = 0;
 
@@ -257,6 +275,126 @@ new GLTFLoader().load('./model.glb', (gltf) => {
   cycleStart = clock.getElapsedTime();
 });
 
+// ─── Rain system ─────────────────────────────────────────
+const rainCanvas = document.getElementById('rain');
+const rainCtx    = rainCanvas.getContext('2d');
+const CHAR_SIZE  = 16;
+const RAIN_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*+=';
+const LOGO_W_RATIO = 0.38;
+
+let hoverProg  = 0;
+const HOVER_IN  = 1 / 90;  // ~1.5s でフルに
+const HOVER_OUT = 1 / 150; // ~2.5s でゼロに
+const HOVER_TIMEOUT = 3.0;
+
+// ── ロゴマスク ─────────────────────────────────────────
+const logoImg = new Image();
+let   logoReady = false;
+let   logoMask  = []; // col → {yMin,yMax} or null
+
+function buildLogoMask() {
+  const W = rainCanvas.width, H = rainCanvas.height;
+  const lw = W * LOGO_W_RATIO;
+  const lh = lw * (logoImg.naturalHeight / logoImg.naturalWidth);
+  const lx = (W - lw) / 2;
+  const ly = (H - lh) / 2;
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const c2 = off.getContext('2d');
+  c2.drawImage(logoImg, lx, ly, lw, lh);
+  const px = c2.getImageData(0, 0, W, H).data;
+  const cols = Math.ceil(W / CHAR_SIZE);
+  logoMask = new Array(cols).fill(null);
+  for (let col = 0; col < cols; col++) {
+    const x0 = col * CHAR_SIZE, x1 = Math.min(x0 + CHAR_SIZE, W);
+    let yMin = -1, yMax = -1;
+    for (let y = 0; y < H; y++) {
+      let hit = false;
+      for (let x = x0; x < x1 && !hit; x++) {
+        if (px[(y * W + x) * 4 + 3] > 32) hit = true;
+      }
+      if (hit) { if (yMin < 0) yMin = y; yMax = y; }
+    }
+    if (yMin >= 0) logoMask[col] = { yMin, yMax };
+  }
+}
+
+logoImg.onload = () => { logoReady = true; buildLogoMask(); };
+logoImg.src = './jianye-logo-web-bg.png';
+
+// ── ドロップ ───────────────────────────────────────────
+let drops = [];
+function initDrops() {
+  const cols = Math.ceil(rainCanvas.width / CHAR_SIZE);
+  drops = Array.from({ length: cols }, () => ({
+    y:     Math.random() * -rainCanvas.height,
+    speed: 1.5 + Math.random() * 3.0,
+    len:   8  + Math.floor(Math.random() * 14),
+    glyphs: Array.from({ length: 24 },
+      () => RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)])
+  }));
+}
+
+function resizeRain() {
+  rainCanvas.width  = window.innerWidth;
+  rainCanvas.height = window.innerHeight;
+  if (logoReady) buildLogoMask();
+  initDrops();
+}
+resizeRain();
+
+// ── 雨描画 ─────────────────────────────────────────────
+function updateRain(t) {
+  const sinceMove = t - lastMoveTime;
+  const active    = sinceMove < HOVER_TIMEOUT;
+  hoverProg = active
+    ? Math.min(1, hoverProg + HOVER_IN)
+    : Math.max(0, hoverProg - HOVER_OUT);
+
+  const W = rainCanvas.width, H = rainCanvas.height;
+  rainCtx.clearRect(0, 0, W, H);
+
+  if (hoverProg <= 0.001) return;
+
+  // 背景を徐々に暗くする
+  rainCtx.fillStyle = `rgba(0,0,0,${hoverProg * 0.75})`;
+  rainCtx.fillRect(0, 0, W, H);
+
+  if (!logoReady) return;
+
+  rainCtx.font = `${CHAR_SIZE}px monospace`;
+  const cols = Math.ceil(W / CHAR_SIZE);
+
+  for (let c = 0; c < cols && c < drops.length; c++) {
+    const d    = drops[c];
+    const mask = c < logoMask.length ? logoMask[c] : null;
+    d.y += d.speed;
+    if (d.y - d.len * CHAR_SIZE > H) {
+      d.y    = -d.len * CHAR_SIZE * (0.5 + Math.random());
+      d.speed = 1.5 + Math.random() * 3.0;
+    }
+    for (let i = 0; i < d.len; i++) {
+      const cy = d.y - i * CHAR_SIZE;
+      if (cy < -CHAR_SIZE || cy > H) continue;
+      // ロゴ領域はスキップ
+      if (mask && cy >= mask.yMin - CHAR_SIZE && cy <= mask.yMax + CHAR_SIZE) continue;
+      if (Math.random() < 0.015)
+        d.glyphs[i % d.glyphs.length] = RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
+      const fade  = i === 0 ? 1.0 : Math.max(0, 1 - i / d.len);
+      const alpha = fade * hoverProg * (i === 0 ? 1.0 : 0.65);
+      rainCtx.fillStyle = `rgba(51,51,51,${alpha})`;
+      rainCtx.fillText(d.glyphs[i % d.glyphs.length], c * CHAR_SIZE, cy);
+    }
+  }
+}
+
+// ── クリックでCAPTUREページへ ──────────────────────────
+// ※ WixのCAPTUREページURLに変更してください
+const CAPTURE_URL = 'YOUR_CAPTURE_PAGE_URL';
+window.addEventListener('click', () => {
+  if (hoverProg > 0.3) window.top.location.href = CAPTURE_URL;
+});
+
 // ─── Noise ───────────────────────────────────────────────
 const noise = (t, f, p) =>
   Math.sin(t * f + p) * 0.5 +
@@ -270,6 +408,7 @@ function animate() {
 
   updateIdle(t);
   updateCycle(t);
+  updateRain(t);
 
   // トラッキング量（アイドル中はゼロへ収束）
   const tr = idleState === 'track' ? 1.0 : 0.0;
@@ -321,6 +460,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  resizeRain();
 });
 </script>
 </body>
