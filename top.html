@@ -316,7 +316,7 @@ function frameModel(obj) {
   const center2 = box2.getCenter(new THREE.Vector3());
   const size2   = box2.getSize(new THREE.Vector3());
   obj.position.x -= center2.x; obj.position.y -= center2.y; obj.position.z -= center2.z;
-  obj.position.y = size2.y * 0.05;
+  obj.position.y = size2.y * -0.03;
 }
 
 // ─── Load model ──────────────────────────────────────────
