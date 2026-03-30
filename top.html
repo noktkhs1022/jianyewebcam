@@ -5,9 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0; padding: 0; box-sizing: border-box;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
     html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
-    canvas { display: block; }
+    canvas { display: block; touch-action: none; }
 
     #hover-label {
       position: fixed;
@@ -39,6 +44,10 @@
     #hover-text.blink {
       animation: text-blink 1.1s ease-in-out infinite;
     }
+
+    @media (max-width: 767px) {
+      #hover-label { font-size: 11px; padding: 6px 14px 5px; letter-spacing: 0.08em; }
+    }
   </style>
   <script type="importmap">
   {
@@ -59,8 +68,8 @@ const IS_MOBILE = window.innerWidth < 768;
 const clock = new THREE.Clock();
 
 // ─── Renderer ────────────────────────────────────────────
-const renderer = new THREE.WebGLRenderer({ antialias: !IS_MOBILE, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.5 : 2));
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.0 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
@@ -130,6 +139,7 @@ const HOVER_OUT    = 0.8;   // /秒
 
 function isHoveringModel() {
   if (!mouseMoved) return false;
+  if (IS_MOBILE) return mobileHoverOn;
   return mouse.x > MODEL_NDC.xMin && mouse.x < MODEL_NDC.xMax
       && mouse.y > MODEL_NDC.yMin && mouse.y < MODEL_NDC.yMax;
 }
@@ -174,6 +184,30 @@ function resetLabel() {
 labelEl.addEventListener('click', () => {
   window.open(CAPTURE_URL, '_blank');
 });
+
+// ─── Mobile tap-to-toggle ────────────────────────────────
+let mobileHoverOn = false;
+if (IS_MOBILE) {
+  document.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (labelEl.contains(target) && hoverProg > 0.5) {
+      window.open(CAPTURE_URL, '_blank'); return;
+    }
+    const nx =  (touch.clientX / window.innerWidth)  * 2 - 1;
+    const ny = -((touch.clientY / window.innerHeight) * 2 - 1);
+    const inModel = nx > MODEL_NDC.xMin && nx < MODEL_NDC.xMax
+                 && ny > MODEL_NDC.yMin && ny < MODEL_NDC.yMax;
+    if (!mobileHoverOn && inModel) {
+      mobileHoverOn = true;
+      mouseMoved = true; mouse.x = nx; mouse.y = ny;
+      lastMoveTime = clock.getElapsedTime();
+    } else if (mobileHoverOn) {
+      mobileHoverOn = false;
+    }
+  }, { passive: false });
+}
 
 // ─── Spring-damper ───────────────────────────────────────
 const cur = { ry: 0, rx: 0, rz: 0 };
@@ -318,7 +352,7 @@ function animate() {
   // ── hoverProg更新 ──────────────────────────────────
   const over = isHoveringModel();
   if (over) {
-    if (hoverStartTime === null) hoverStartTime = t;
+    if (hoverStartTime === null) hoverStartTime = IS_MOBILE ? t - HOVER_DWELL : t;
     const dwelt = (t - hoverStartTime) >= HOVER_DWELL;
     hoverProg = dwelt
       ? Math.min(1, hoverProg + HOVER_IN * dt)
