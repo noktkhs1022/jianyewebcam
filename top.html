@@ -309,10 +309,10 @@ function isHoveringModel() {
       && mouse.y > MODEL_NDC.yMin && mouse.y < MODEL_NDC.yMax;
 }
 
-// ── ロゴマスク ─────────────────────────────────────────
+// ── ロゴマスク（文字セル単位2Dグリッド）──────────────
 const logoImg = new Image();
-let   logoReady = false;
-let   logoDrawRect = null; // destination-out用の描画範囲
+let   logoReady  = false;
+let   logoMaskGrid = null; // logoMaskGrid[col][row] = 1 → 描画スキップ
 
 function buildLogoMask() {
   const W = rainCanvas.width, H = rainCanvas.height;
@@ -320,7 +320,30 @@ function buildLogoMask() {
   const lh = lw * (logoImg.naturalHeight / logoImg.naturalWidth);
   const lx = (W - lw) / 2;
   const ly = H * 0.5 - lh * 0.5;
-  logoDrawRect = { lx, ly, lw, lh };
+
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const c2 = off.getContext('2d');
+  c2.drawImage(logoImg, lx, ly, lw, lh);
+  const px = c2.getImageData(0, 0, W, H).data;
+
+  const numCols = Math.ceil(W / CHAR_SIZE);
+  const numRows = Math.ceil(H / CHAR_SIZE);
+  logoMaskGrid = Array.from({ length: numCols }, () => new Uint8Array(numRows));
+
+  for (let c = 0; c < numCols; c++) {
+    for (let r = 0; r < numRows; r++) {
+      const x0 = c * CHAR_SIZE, x1 = Math.min(x0 + CHAR_SIZE, W);
+      const y0 = r * CHAR_SIZE, y1 = Math.min(y0 + CHAR_SIZE, H);
+      let hit = false;
+      outer: for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          if (px[(y * W + x) * 4 + 3] > 20) { hit = true; break outer; }
+        }
+      }
+      if (hit) logoMaskGrid[c][r] = 1;
+    }
+  }
 }
 
 logoImg.onload = () => { logoReady = true; buildLogoMask(); };
@@ -462,6 +485,10 @@ function updateRain() {
         const cy = row * CHAR_SIZE + CHAR_SIZE;
         if (cy > H) break;
 
+        // ロゴ領域はスキップ（ASCII不在でシルエットを表現）
+        if (logoMaskGrid && c < logoMaskGrid.length && row < logoMaskGrid[c].length
+            && logoMaskGrid[c][row]) continue;
+
         const fromFront = front - 1 - row;
         const fade  = Math.max(0.25, 1 - fromFront / 28.0);
         const alpha = Math.min(1, fade * denseProg);
@@ -469,17 +496,6 @@ function updateRain() {
         rainCtx.fillText(ch, c * CHAR_SIZE + xOff, cy);
       }
     }
-  }
-
-  // ── ロゴをdestination-outで「穴あけ」────────────
-  // ロゴ形状の部分だけcanvasを透明に→背景色がロゴ形状として浮かび上がる
-  if (logoReady && logoDrawRect && bgProg > 0.05) {
-    const { lx, ly, lw, lh } = logoDrawRect;
-    rainCtx.globalCompositeOperation = 'destination-out';
-    rainCtx.globalAlpha = Math.min(1, bgProg * 1.2);
-    rainCtx.drawImage(logoImg, lx, ly, lw, lh);
-    rainCtx.globalAlpha = 1;
-    rainCtx.globalCompositeOperation = 'source-over';
   }
 }
 
