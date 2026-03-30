@@ -310,7 +310,7 @@ function frameModel(obj) {
   const size   = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   obj.position.x -= center.x; obj.position.y -= center.y; obj.position.z -= center.z;
-  const targetHeight = IS_MOBILE ? 6.0 : 3.55;
+  const targetHeight = IS_MOBILE ? 5.8 : 3.55;
   obj.scale.setScalar(targetHeight / Math.max(size.y, 0.0001));
   const box2    = new THREE.Box3().setFromObject(obj);
   const center2 = box2.getCenter(new THREE.Vector3());
