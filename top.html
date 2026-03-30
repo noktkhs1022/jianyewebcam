@@ -192,8 +192,8 @@ if (IS_MOBILE) {
     e.preventDefault();
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (labelEl.contains(target) && hoverProg > 0.5) {
-      window.open(CAPTURE_URL, '_blank'); return;
+    if (mobileHoverOn && labelEl.contains(target)) {
+      location.href = CAPTURE_URL; return;
     }
     const nx =  (touch.clientX / window.innerWidth)  * 2 - 1;
     const ny = -((touch.clientY / window.innerHeight) * 2 - 1);
