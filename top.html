@@ -145,17 +145,20 @@ const DAMPING = 0.82;
 // ─── Input ───────────────────────────────────────────────
 const mouse = { x: 0, y: 0 };
 let lastMoveTime = -999;
+let mouseMoved = false;
 
 window.addEventListener('mousemove', (e) => {
   mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
   mouse.y = -((e.clientY / window.innerHeight) * 2 - 1);
   lastMoveTime = clock.getElapsedTime();
+  mouseMoved = true;
 });
 window.addEventListener('touchmove', (e) => {
   const t = e.touches[0];
   mouse.x =  (t.clientX / window.innerWidth)  * 2 - 1;
   mouse.y = -((t.clientY / window.innerHeight) * 2 - 1);
   lastMoveTime = clock.getElapsedTime();
+  mouseMoved = true;
 }, { passive: true });
 
 // ─── postMessage（Wix埋め込み時）────────────────────────
@@ -165,6 +168,7 @@ window.addEventListener('message', (e) => {
     mouse.x = d.mx;
     mouse.y = d.my;
     lastMoveTime = clock.getElapsedTime();
+    mouseMoved = true;
   }
 });
 
@@ -303,7 +307,7 @@ function buildHoverMesh(model) {
 }
 
 function isHoveringModel() {
-  if (!hoverMesh) return false;
+  if (!hoverMesh || !mouseMoved) return false;
   raycaster.setFromCamera(new THREE.Vector2(mouse.x, mouse.y), camera);
   return raycaster.intersectObject(hoverMesh).length > 0;
 }
