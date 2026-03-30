@@ -11,7 +11,7 @@
       position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
       pointer-events: none;
-      z-index: 2;
+      z-index: 1;
     }
   </style>
   <script type="importmap">
@@ -39,6 +39,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.domElement.style.cssText = 'position:fixed;inset:0;z-index:3;pointer-events:none;';
 document.body.appendChild(renderer.domElement);
 
 // ─── Scene / Camera ──────────────────────────────────────
@@ -289,8 +290,8 @@ const LOGO_W_RATIO = IS_MOBILE ? 0.82 : 0.65;
 let hoverProg      = 0;
 let hoverStartTime = null;   // モデル上に入った瞬間の時刻
 const HOVER_DWELL  = 0.4;    // 0.4秒以上ホバーしてから発動
-const HOVER_IN     = 1 / 50;
-const HOVER_OUT    = 1 / 100;
+const HOVER_IN     = 1.5;  // /秒
+const HOVER_OUT    = 0.7;  // /秒
 
 // ── モデルホバー判定（スクリーン座標）────────────────
 // NDC座標（-1〜+1）でモデルの表示領域を定義
@@ -306,33 +307,15 @@ function isHoveringModel() {
 // ── ロゴマスク ─────────────────────────────────────────
 const logoImg = new Image();
 let   logoReady = false;
-let   logoMask  = [];
+let   logoDrawRect = null; // destination-out用の描画範囲
 
 function buildLogoMask() {
   const W = rainCanvas.width, H = rainCanvas.height;
   const lw = W * LOGO_W_RATIO;
   const lh = lw * (logoImg.naturalHeight / logoImg.naturalWidth);
   const lx = (W - lw) / 2;
-  // ロゴを画面中央より少し下に配置
   const ly = H * 0.5 - lh * 0.5;
-  const off = document.createElement('canvas');
-  off.width = W; off.height = H;
-  const c2 = off.getContext('2d');
-  c2.drawImage(logoImg, lx, ly, lw, lh);
-  const px  = c2.getImageData(0, 0, W, H).data;
-  const cols = Math.ceil(W / CHAR_SIZE);
-  logoMask = new Array(cols).fill(null);
-  for (let col = 0; col < cols; col++) {
-    const x0 = col * CHAR_SIZE, x1 = Math.min(x0 + CHAR_SIZE, W);
-    let yMin = -1, yMax = -1;
-    for (let y = 0; y < H; y++) {
-      let hit = false;
-      for (let x = x0; x < x1 && !hit; x++)
-        if (px[(y * W + x) * 4 + 3] > 20) hit = true;
-      if (hit) { if (yMin < 0) yMin = y; yMax = y; }
-    }
-    if (yMin >= 0) logoMask[col] = { yMin, yMax };
-  }
+  logoDrawRect = { lx, ly, lw, lh };
 }
 
 logoImg.onload = () => { logoReady = true; buildLogoMask(); };
@@ -389,79 +372,109 @@ resizeRain();
 // ── 雨描画 ───────────────────────────────────────────
 function updateRain() {
   const now = clock.getElapsedTime();
-  const dt  = prevRainT < 0 ? 0 : now - prevRainT;
+  const dt  = prevRainT < 0 ? 0 : Math.min(now - prevRainT, 0.05);
   prevRainT = now;
 
+  // ── hoverProgの更新 ──────────────────────────────
   const over = isHoveringModel();
   if (over) {
     if (hoverStartTime === null) hoverStartTime = now;
     const dwelt = (now - hoverStartTime) >= HOVER_DWELL;
     hoverProg = dwelt
-      ? Math.min(1, hoverProg + HOVER_IN)
-      : Math.max(0, hoverProg - HOVER_OUT * 0.3);
+      ? Math.min(1, hoverProg + HOVER_IN * dt)
+      : Math.max(0, hoverProg - HOVER_OUT * 0.3 * dt);
   } else {
     hoverStartTime = null;
-    hoverProg = Math.max(0, hoverProg - HOVER_OUT);
+    hoverProg = Math.max(0, hoverProg - HOVER_OUT * dt);
   }
 
   const W = rainCanvas.width, H = rainCanvas.height;
   rainCtx.clearRect(0, 0, W, H);
   if (hoverProg <= 0.001) return;
 
-  // 背景暗化
-  rainCtx.fillStyle = `rgba(0,0,0,${hoverProg * 0.78})`;
-  rainCtx.fillRect(0, 0, W, H);
-  if (!logoReady) return;
+  // ── フェーズ制御 ─────────────────────────────────
+  // Phase 1 (hoverProg 0→0.35): グリッチ散乱、背景まだ白
+  // Phase 2 (hoverProg 0.25→0.75): 背景じわじわ暗転
+  // Phase 3 (hoverProg 0.5→1.0): ASCII密度上昇、ロゴ浮上
+  const bgProg    = Math.max(0, Math.min(1, (hoverProg - 0.25) / 0.75));
+  const glitchAmt = Math.max(0, 1 - hoverProg * 1.8); // 序盤に最大、後半消える
+  const denseProg = Math.max(0, Math.min(1, (hoverProg - 0.3) / 0.7));
+
+  // 背景暗化（フェーズ2から）
+  if (bgProg > 0) {
+    rainCtx.fillStyle = `rgba(0,0,0,${bgProg * 0.80})`;
+    rainCtx.fillRect(0, 0, W, H);
+  }
+
+  // 文字色（背景暗転に合わせてチャコール→ライトグレー）
+  const cv = Math.round(51 + 160 * bgProg);
+
+  rainCtx.font = `${CHAR_SIZE}px monospace`;
 
   const numCols = Math.ceil(W / CHAR_SIZE);
   if (cols.length !== numCols) initCols();
 
-  // ホバー中 or まだフェードアウト中でなければ前進
-  const advancing = over || hoverProg > 0.98;
-
-  // カラム位置を更新
-  for (let c = 0; c < numCols; c++) {
-    const col = cols[c];
-    if (advancing) {
-      col.front += col.speed * dt;
-      // 末尾到達したら新しいディレイ付きで再生成
-      if (col.front >= col.chars.length) {
-        cols[c] = makeCol(H);
-        cols[c].front = -(1 + Math.random() * 18);
-      }
-    } else {
-      // 逆再生：2倍速で上に向かって消える
-      col.front -= col.speed * 2.0 * dt;
+  // ── Phase1: 散乱グリッチ文字（序盤のみ）─────────
+  if (glitchAmt > 0.05) {
+    const gCount = Math.floor(glitchAmt * 55 * (W / 1440));
+    for (let i = 0; i < gCount; i++) {
+      const gx = Math.floor(Math.random() * numCols) * CHAR_SIZE;
+      const gy = Math.floor(Math.random() * Math.ceil(H / CHAR_SIZE)) * CHAR_SIZE + CHAR_SIZE;
+      const ga = glitchAmt * (0.4 + Math.random() * 0.6) * hoverProg;
+      rainCtx.fillStyle = `rgba(${cv},${cv},${cv},${ga})`;
+      rainCtx.fillText(fxChar(Math.random()), gx, gy);
     }
   }
 
-  // 文字色：背景が暗くなるにつれてチャコール→ライトグレー
-  const cv = Math.round(51 + 160 * hoverProg); // 51=charcoal, 211=light gray
-
-  rainCtx.font = `${CHAR_SIZE}px monospace`;
-
-  for (let c = 0; c < numCols; c++) {
-    const col   = cols[c];
-    const mask  = c < logoMask.length ? logoMask[c] : null;
-    const front = Math.floor(col.front);
-    if (front <= 0) continue;
-
-    const limit = Math.min(front, col.chars.length);
-    for (let row = 0; row < limit; row++) {
-      const ch = col.chars[row];
-      if (ch === null) continue;
-
-      const cy = row * CHAR_SIZE + CHAR_SIZE;
-      if (cy > H) break;
-      if (mask && cy >= mask.yMin - CHAR_SIZE && cy <= mask.yMax + CHAR_SIZE) continue;
-
-      // フロントに近いほど明るく、遠いほどフェード（最低0.25）
-      const fromFront = front - 1 - row;
-      const fade  = Math.max(0.25, 1 - fromFront / 28.0);
-      const alpha = Math.min(1, fade * hoverProg);
-      rainCtx.fillStyle = `rgba(${cv},${cv},${cv},${alpha})`;
-      rainCtx.fillText(ch, c * CHAR_SIZE, cy);
+  // ── Phase3: カラム更新と描画 ─────────────────────
+  if (denseProg > 0) {
+    for (let c = 0; c < numCols; c++) {
+      const col = cols[c];
+      if (over) {
+        col.front += col.speed * dt;
+        if (col.front >= col.chars.length) {
+          cols[c] = makeCol(H);
+          cols[c].front = -(1 + Math.random() * 18);
+        }
+      } else {
+        col.front -= col.speed * 2.0 * dt;
+      }
     }
+
+    for (let c = 0; c < numCols; c++) {
+      const col   = cols[c];
+      const front = Math.floor(col.front);
+      if (front <= 0) continue;
+
+      // 列ごとにグリッチxオフセット（序盤のみ）
+      const xOff = glitchAmt > 0.1 && Math.random() < glitchAmt * 0.12
+        ? (Math.random() - 0.5) * CHAR_SIZE * 3.5 : 0;
+
+      const limit = Math.min(front, col.chars.length);
+      for (let row = 0; row < limit; row++) {
+        const ch = col.chars[row];
+        if (ch === null) continue;
+        const cy = row * CHAR_SIZE + CHAR_SIZE;
+        if (cy > H) break;
+
+        const fromFront = front - 1 - row;
+        const fade  = Math.max(0.25, 1 - fromFront / 28.0);
+        const alpha = Math.min(1, fade * denseProg);
+        rainCtx.fillStyle = `rgba(${cv},${cv},${cv},${alpha})`;
+        rainCtx.fillText(ch, c * CHAR_SIZE + xOff, cy);
+      }
+    }
+  }
+
+  // ── ロゴをdestination-outで「穴あけ」────────────
+  // ロゴ形状の部分だけcanvasを透明に→背景色がロゴ形状として浮かび上がる
+  if (logoReady && logoDrawRect && bgProg > 0.05) {
+    const { lx, ly, lw, lh } = logoDrawRect;
+    rainCtx.globalCompositeOperation = 'destination-out';
+    rainCtx.globalAlpha = Math.min(1, bgProg * 1.2);
+    rainCtx.drawImage(logoImg, lx, ly, lw, lh);
+    rainCtx.globalAlpha = 1;
+    rainCtx.globalCompositeOperation = 'source-over';
   }
 }
 
