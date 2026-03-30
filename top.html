@@ -276,21 +276,24 @@ new GLTFLoader().load('./model.glb', (gltf) => {
 });
 
 // ─── Rain system ─────────────────────────────────────────
-const rainCanvas = document.getElementById('rain');
-const rainCtx    = rainCanvas.getContext('2d');
-const CHAR_SIZE  = 16;
-const RAIN_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*+=';
-const LOGO_W_RATIO = 0.38;
+const rainCanvas  = document.getElementById('rain');
+const rainCtx     = rainCanvas.getContext('2d');
+// main.jsと同じFX_SETを使用（輝度マッピング方式）
+const FX_SET      = ' .:-=+*#%@';
+const CHAR_SIZE   = IS_MOBILE ? 13 : 10;
+const LOGO_W_RATIO = IS_MOBILE ? 0.80 : 0.58;
+// モバイルは列を間引いてパフォーマンス確保
+const COL_STEP    = IS_MOBILE ? 2 : 1;
 
 let hoverProg  = 0;
-const HOVER_IN  = 1 / 90;  // ~1.5s でフルに
-const HOVER_OUT = 1 / 150; // ~2.5s でゼロに
+const HOVER_IN  = 1 / 90;
+const HOVER_OUT = 1 / 150;
 const HOVER_TIMEOUT = 3.0;
 
 // ── ロゴマスク ─────────────────────────────────────────
 const logoImg = new Image();
 let   logoReady = false;
-let   logoMask  = []; // col → {yMin,yMax} or null
+let   logoMask  = [];
 
 function buildLogoMask() {
   const W = rainCanvas.width, H = rainCanvas.height;
@@ -322,17 +325,23 @@ function buildLogoMask() {
 logoImg.onload = () => { logoReady = true; buildLogoMask(); };
 logoImg.src = './jianye-logo-web-bg.png';
 
-// ── ドロップ ───────────────────────────────────────────
+// ── ドロップ（輝度マッピング方式）────────────────────
 let drops = [];
 function initDrops() {
   const cols = Math.ceil(rainCanvas.width / CHAR_SIZE);
   drops = Array.from({ length: cols }, () => ({
     y:     Math.random() * -rainCanvas.height,
-    speed: 1.5 + Math.random() * 3.0,
-    len:   8  + Math.floor(Math.random() * 14),
-    glyphs: Array.from({ length: 24 },
-      () => RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)])
+    // Matrixより大幅に遅く
+    speed: 0.4 + Math.random() * 1.0,
+    len:   10 + Math.floor(Math.random() * 10),
   }));
+}
+
+// 輝度→FX_SET文字（headが@、tailが.やスペースへ）
+function fxChar(brightness) {
+  const idx = Math.min(FX_SET.length - 1,
+    Math.floor(brightness * FX_SET.length));
+  return FX_SET[idx];
 }
 
 function resizeRain() {
@@ -353,44 +362,41 @@ function updateRain(t) {
 
   const W = rainCanvas.width, H = rainCanvas.height;
   rainCtx.clearRect(0, 0, W, H);
-
   if (hoverProg <= 0.001) return;
 
   // 背景を徐々に暗くする
   rainCtx.fillStyle = `rgba(0,0,0,${hoverProg * 0.75})`;
   rainCtx.fillRect(0, 0, W, H);
-
   if (!logoReady) return;
 
   rainCtx.font = `${CHAR_SIZE}px monospace`;
   const cols = Math.ceil(W / CHAR_SIZE);
 
-  for (let c = 0; c < cols && c < drops.length; c++) {
+  for (let c = 0; c < cols && c < drops.length; c += COL_STEP) {
     const d    = drops[c];
     const mask = c < logoMask.length ? logoMask[c] : null;
     d.y += d.speed;
     if (d.y - d.len * CHAR_SIZE > H) {
       d.y    = -d.len * CHAR_SIZE * (0.5 + Math.random());
-      d.speed = 1.5 + Math.random() * 3.0;
+      d.speed = 0.4 + Math.random() * 1.0;
     }
     for (let i = 0; i < d.len; i++) {
       const cy = d.y - i * CHAR_SIZE;
       if (cy < -CHAR_SIZE || cy > H) continue;
-      // ロゴ領域はスキップ
       if (mask && cy >= mask.yMin - CHAR_SIZE && cy <= mask.yMax + CHAR_SIZE) continue;
-      if (Math.random() < 0.015)
-        d.glyphs[i % d.glyphs.length] = RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
-      const fade  = i === 0 ? 1.0 : Math.max(0, 1 - i / d.len);
-      const alpha = fade * hoverProg * (i === 0 ? 1.0 : 0.65);
+
+      // 輝度マッピング：headが最も濃く、tailへ薄くなる
+      const brightness = Math.max(0, 1 - i / d.len);
+      const ch  = fxChar(brightness);
+      const alpha = brightness * hoverProg * 0.9;
       rainCtx.fillStyle = `rgba(51,51,51,${alpha})`;
-      rainCtx.fillText(d.glyphs[i % d.glyphs.length], c * CHAR_SIZE, cy);
+      rainCtx.fillText(ch, c * CHAR_SIZE, cy);
     }
   }
 }
 
 // ── クリックでCAPTUREページへ ──────────────────────────
-// ※ WixのCAPTUREページURLに変更してください
-const CAPTURE_URL = 'YOUR_CAPTURE_PAGE_URL';
+const CAPTURE_URL = 'https://www.jianye.online/capture';
 window.addEventListener('click', () => {
   if (hoverProg > 0.3) window.top.location.href = CAPTURE_URL;
 });
