@@ -38,8 +38,7 @@ document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 200);
 camera.position.set(0, 1.2, 9.0);
-camera.lookAt(0, 0, 0);
-let cameraLookY = 0;
+camera.lookAt(0, 0.2, 0);
 
 // ─── Lighting ────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 1.35));
@@ -240,6 +239,7 @@ function frameModel(obj) {
   obj.position.x -= center2.x;
   obj.position.y -= center2.y;
   obj.position.z -= center2.z;
+  obj.position.y = -size2.y * 0.18;
 }
 
 // ─── Load model ──────────────────────────────────────────
@@ -255,13 +255,6 @@ new GLTFLoader().load('./model.glb', (gltf) => {
   frameModel(model);
   buildWireOverlay(model);
   cycleStart = clock.getElapsedTime();
-
-  // モデルの実際の中心をカメラのlookAtに反映
-  model.updateWorldMatrix(true, true);
-  const bb = new THREE.Box3().setFromObject(model);
-  cameraLookY = bb.getCenter(new THREE.Vector3()).y;
-  camera.position.set(0, cameraLookY + 1.2, 9.0);
-  camera.lookAt(0, cameraLookY, 0);
 });
 
 // ─── Noise ───────────────────────────────────────────────
@@ -314,9 +307,9 @@ function animate() {
   const hb  = (lub + dub) * 0.27; // 3% of z=9.0
 
   // カメラ（呼吸 + 心拍）
-  camera.position.y = cameraLookY + 1.2 + breath * 0.010;
+  camera.position.y = 1.2 + breath * 0.010;
   camera.position.z = 9.0 - hb;
-  camera.lookAt(0, cameraLookY, 0);
+  camera.lookAt(0, 0.2, 0);
 
   renderer.render(scene, camera);
 }
