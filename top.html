@@ -3,10 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
     canvas { display: block; }
+
+    #hover-label {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      font-family: 'VT323', monospace;
+      font-size: 12px;
+      line-height: 1;
+      letter-spacing: 0.08em;
+      color: black;
+      border: 1px solid rgba(0, 0, 0, 0.50);
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      padding: 5px 12px 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    @keyframes text-blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.12; }
+    }
+    #hover-text.blink {
+      animation: text-blink 1.1s ease-in-out infinite;
+    }
   </style>
   <script type="importmap">
   {
@@ -18,6 +50,7 @@
   </script>
 </head>
 <body>
+<div id="hover-label"><span id="hover-text"></span></div>
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -32,6 +65,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.domElement.style.pointerEvents = 'none';
 document.body.appendChild(renderer.domElement);
 
 // ─── Scene / Camera ──────────────────────────────────────
@@ -79,44 +113,67 @@ function buildWireOverlay(model) {
   });
 }
 
-// ─── Texture↔Wire cycle ──────────────────────────────────
-// tex(15s) → fadeToWire(1.5s) → wire(5s) → fadeToTex(1.5s) → ...
-const FADE_DUR  = 1.5;
-const TEX_DUR   = 15;
-const WIRE_DUR  = 5;
-let   cycleState = 'tex';
-let   cycleStart = 0;
-
-function updateCycle(t) {
+// ─── Hover → Wire blend（hoverProgで直接制御）────────────
+function updateCycle() {
   if (texMeshes.length === 0) return;
-  const p = t - cycleStart;
-  let texA = 1, wireA = 0;
+  texMeshes.forEach(({ mats }) => mats.forEach(m => { m.opacity = 1 - hoverProg; }));
+  wireMeshes.forEach(wm => { wm.material.opacity = hoverProg; });
+}
 
-  switch (cycleState) {
-    case 'tex':
-      texA = 1; wireA = 0;
-      if (p >= TEX_DUR) { cycleState = 'fadeToWire'; cycleStart = t; }
-      break;
-    case 'fadeToWire': {
-      const r = easeInOut(Math.min(p / FADE_DUR, 1));
-      texA = 1 - r; wireA = r;
-      if (p >= FADE_DUR) { cycleState = 'wire'; cycleStart = t; }
-      break;
-    }
-    case 'wire':
-      texA = 0; wireA = 1;
-      if (p >= WIRE_DUR) { cycleState = 'fadeToTex'; cycleStart = t; }
-      break;
-    case 'fadeToTex': {
-      const r = easeInOut(Math.min(p / FADE_DUR, 1));
-      texA = r; wireA = 1 - r;
-      if (p >= FADE_DUR) { cycleState = 'tex'; cycleStart = t; }
-      break;
+// ─── Hover detection ─────────────────────────────────────
+const MODEL_NDC    = { xMin: -0.28, xMax: 0.28, yMin: -0.42, yMax: 0.52 };
+let   hoverProg    = 0;
+let   hoverStartTime = null;
+const HOVER_DWELL  = 0.4;   // 発動までの待機秒
+const HOVER_IN     = 1.5;   // /秒
+const HOVER_OUT    = 0.8;   // /秒
+
+function isHoveringModel() {
+  if (!mouseMoved) return false;
+  return mouse.x > MODEL_NDC.xMin && mouse.x < MODEL_NDC.xMax
+      && mouse.y > MODEL_NDC.yMin && mouse.y < MODEL_NDC.yMax;
+}
+
+// ─── Hover label（B）────────────────────────────────────
+const CAPTURE_URL = 'https://www.jianye.online/capture';
+const labelEl     = document.getElementById('hover-label');
+const textEl      = document.getElementById('hover-text');
+const TYPE_TEXT   = 'WEBCAM / CAPTURE';
+const TYPE_SPEED  = 72; // ms/char
+let typeTimer     = null;
+let typeIndex     = 0;
+let typeComplete  = false;
+let hoverWasActive = false;
+
+function startTypewriter() {
+  clearTimeout(typeTimer);
+  typeIndex    = 0;
+  typeComplete = false;
+  textEl.textContent = '';
+  textEl.classList.remove('blink');
+
+  function typeNext() {
+    if (typeIndex < TYPE_TEXT.length) {
+      textEl.textContent += TYPE_TEXT[typeIndex++];
+      typeTimer = setTimeout(typeNext, TYPE_SPEED);
+    } else {
+      typeComplete = true;
+      textEl.classList.add('blink');
     }
   }
-  texMeshes.forEach(({ mats }) => mats.forEach(m => { m.opacity = texA; }));
-  wireMeshes.forEach(wm => { wm.material.opacity = wireA; });
+  typeNext();
 }
+
+function resetLabel() {
+  clearTimeout(typeTimer);
+  typeComplete = false;
+  textEl.classList.remove('blink');
+  textEl.textContent = '';
+}
+
+labelEl.addEventListener('click', () => {
+  window.open(CAPTURE_URL, '_blank');
+});
 
 // ─── Spring-damper ───────────────────────────────────────
 const cur = { ry: 0, rx: 0, rz: 0 };
@@ -127,7 +184,7 @@ const DAMPING = 0.82;
 // ─── Input ───────────────────────────────────────────────
 const mouse = { x: 0, y: 0 };
 let lastMoveTime = -999;
-let mouseMoved = false;
+let mouseMoved   = false;
 
 window.addEventListener('mousemove', (e) => {
   mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
@@ -155,10 +212,10 @@ window.addEventListener('message', (e) => {
 });
 
 // ─── Idle state machine ──────────────────────────────────
-let idleState    = 'track';
-let stateStartT  = 0;
-let motionType   = 0;
-const idleTgt    = { ry: 0, rx: 0, rz: 0 };
+let idleState   = 'track';
+let stateStartT = 0;
+let motionType  = 0;
+const idleTgt   = { ry: 0, rx: 0, rz: 0 };
 
 function easeInOut(p) {
   return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
@@ -168,8 +225,7 @@ function updateIdle(t) {
   const sinceMove = t - lastMoveTime;
 
   if (sinceMove < 0.4 && idleState !== 'track') {
-    idleState   = 'track';
-    stateStartT = t;
+    idleState = 'track'; stateStartT = t;
     idleTgt.ry = idleTgt.rx = idleTgt.rz = 0;
     return;
   }
@@ -179,27 +235,21 @@ function updateIdle(t) {
       idleTgt.ry = idleTgt.rx = idleTgt.rz = 0;
       if (sinceMove > 2.5) { idleState = 'curious'; stateStartT = t; }
       break;
-
     case 'curious': {
       const p = easeInOut(Math.min((t - stateStartT) / 1.4, 1.0));
-      idleTgt.rz =  p * 0.13;
-      idleTgt.ry = -p * 0.06;
-      idleTgt.rx = -p * 0.05;
+      idleTgt.rz =  p * 0.13; idleTgt.ry = -p * 0.06; idleTgt.rx = -p * 0.05;
       if (sinceMove > 6.5) { idleState = 'idle'; stateStartT = t; }
       break;
     }
-
     case 'idle':
       idleTgt.ry = Math.sin(t * 0.13) * 0.05;
       idleTgt.rx = Math.sin(t * 0.09) * 0.02;
       idleTgt.rz = 0.06 + Math.sin(t * 0.11) * 0.02;
       if (t - stateStartT > 7.0) {
-        motionType  = Math.random() < 0.5 ? 0 : 1;
-        idleState   = 'motion';
-        stateStartT = t;
+        motionType = Math.random() < 0.5 ? 0 : 1;
+        idleState = 'motion'; stateStartT = t;
       }
       break;
-
     case 'motion': {
       const p = t - stateStartT;
       if (motionType === 0) {
@@ -225,17 +275,13 @@ function frameModel(obj) {
   const box    = new THREE.Box3().setFromObject(obj);
   const size   = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-  obj.position.x -= center.x;
-  obj.position.y -= center.y;
-  obj.position.z -= center.z;
+  obj.position.x -= center.x; obj.position.y -= center.y; obj.position.z -= center.z;
   const targetHeight = IS_MOBILE ? 3.15 : 3.55;
   obj.scale.setScalar(targetHeight / Math.max(size.y, 0.0001));
   const box2    = new THREE.Box3().setFromObject(obj);
   const center2 = box2.getCenter(new THREE.Vector3());
   const size2   = box2.getSize(new THREE.Vector3());
-  obj.position.x -= center2.x;
-  obj.position.y -= center2.y;
-  obj.position.z -= center2.z;
+  obj.position.x -= center2.x; obj.position.y -= center2.y; obj.position.z -= center2.z;
   obj.position.y = size2.y * 0.05;
 }
 
@@ -251,7 +297,6 @@ new GLTFLoader().load('./model.glb', (gltf) => {
   });
   frameModel(model);
   buildWireOverlay(model);
-  cycleStart = clock.getElapsedTime();
 });
 
 // ─── Noise ───────────────────────────────────────────────
@@ -261,12 +306,38 @@ const noise = (t, f, p) =>
   Math.sin(t * f * 2.414 + p * 0.7) * 0.2;
 
 // ─── Animate ─────────────────────────────────────────────
+let prevT = -1;
+
 function animate() {
   requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
+  const t  = clock.getElapsedTime();
+  const dt = prevT < 0 ? 0 : Math.min(t - prevT, 0.05);
+  prevT = t;
+
+  // ── hoverProg更新 ──────────────────────────────────
+  const over = isHoveringModel();
+  if (over) {
+    if (hoverStartTime === null) hoverStartTime = t;
+    const dwelt = (t - hoverStartTime) >= HOVER_DWELL;
+    hoverProg = dwelt
+      ? Math.min(1, hoverProg + HOVER_IN * dt)
+      : Math.max(0, hoverProg - HOVER_OUT * 0.3 * dt);
+  } else {
+    hoverStartTime = null;
+    hoverProg = Math.max(0, hoverProg - HOVER_OUT * dt);
+  }
+
+  // ── ラベル表示更新 ─────────────────────────────────
+  labelEl.style.opacity = hoverProg;
+  labelEl.style.pointerEvents = hoverProg > 0.5 ? 'auto' : 'none';
+
+  const hoverActive = hoverProg > 0.6;
+  if (hoverActive && !hoverWasActive) startTypewriter();
+  if (!hoverActive && hoverWasActive) resetLabel();
+  hoverWasActive = hoverActive;
 
   updateIdle(t);
-  updateCycle(t);
+  updateCycle();
 
   const tr = idleState === 'track' ? 1.0 : 0.0;
   const tgtRy = mouse.x  * 0.50 * tr + idleTgt.ry;
@@ -276,11 +347,8 @@ function animate() {
   vel.ry = vel.ry * DAMPING + (tgtRy - cur.ry) * SPRING;
   vel.rx = vel.rx * DAMPING + (tgtRx - cur.rx) * SPRING;
   vel.rz = vel.rz * DAMPING + (tgtRz - cur.rz) * SPRING;
-  cur.ry += vel.ry;
-  cur.rx += vel.rx;
-  cur.rz += vel.rz;
+  cur.ry += vel.ry; cur.rx += vel.rx; cur.rz += vel.rz;
 
-  // 呼吸サイクル
   const breath = Math.sin(t * 1.31) * 0.65 + Math.sin(t * 0.655) * 0.35;
 
   if (headBone) {
@@ -294,7 +362,6 @@ function animate() {
     neckBone.rotation.z = cur.rz * 0.20 + noise(t, 0.18, 2.3) * 0.004;
   }
 
-  // 心拍（65BPM）
   const hbPhase = (t % 0.923) / 0.923;
   const lub = Math.exp(-Math.pow(hbPhase - 0.05, 2) / 0.0015);
   const dub = Math.exp(-Math.pow(hbPhase - 0.22, 2) / 0.0025) * 0.55;
