@@ -1120,8 +1120,10 @@ window.addEventListener("resize", resizeAll);
 // =====================================================
 const clock = new THREE.Clock();
 
+let _rafId = null;
+
 function renderLoop() {
-  requestAnimationFrame(renderLoop);
+  _rafId = requestAnimationFrame(renderLoop);
 
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
@@ -1164,6 +1166,17 @@ function renderLoop() {
 
   updateStatus();
 }
+
+// =====================================================
+// PAGE VISIBILITY（タブ非表示時に描画停止）
+// =====================================================
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    if (_rafId !== null) { cancelAnimationFrame(_rafId); _rafId = null; }
+  } else {
+    if (_rafId === null) renderLoop();
+  }
+});
 
 // =====================================================
 // INIT

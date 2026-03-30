@@ -306,10 +306,11 @@ const noise = (t, f, p) =>
   Math.sin(t * f * 2.414 + p * 0.7) * 0.2;
 
 // ─── Animate ─────────────────────────────────────────────
-let prevT = -1;
+let prevT    = -1;
+let rafId    = null;
 
 function animate() {
-  requestAnimationFrame(animate);
+  rafId = requestAnimationFrame(animate);
   const t  = clock.getElapsedTime();
   const dt = prevT < 0 ? 0 : Math.min(t - prevT, 0.05);
   prevT = t;
@@ -375,6 +376,15 @@ function animate() {
 }
 
 animate();
+
+// ─── Page Visibility（タブ非表示時に描画停止）────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+  } else {
+    if (rafId === null) animate();
+  }
+});
 
 // ─── Resize ──────────────────────────────────────────────
 window.addEventListener('resize', () => {

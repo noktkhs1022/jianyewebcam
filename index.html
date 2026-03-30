@@ -63,6 +63,49 @@
 
     .mobile-label { display: none; }
 
+    #privacy-notice {
+      position: fixed;
+      left: 40px;
+      bottom: 72px;
+      z-index: 30;
+      max-width: 360px;
+      font-family: "VT323", monospace;
+      font-size: 10px;
+      line-height: 1.75;
+      letter-spacing: 0.02em;
+      color: black;
+      border: 1px solid rgba(0, 0, 0, 0.9);
+      background: rgba(255, 255, 255, 0.92);
+      padding: 8px 10px 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    #privacy-notice.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #privacy-notice p {
+      margin-bottom: 4px;
+    }
+    #privacy-notice-footer {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 6px;
+    }
+    #privacy-notice a.ui-btn {
+      text-decoration: none;
+      display: inline-block;
+    }
+    @media (orientation: portrait) and (max-width: 600px) {
+      #privacy-notice {
+        left: max(20px, env(safe-area-inset-left, 20px));
+        bottom: 72px;
+        max-width: calc(100vw - 40px);
+      }
+    }
+
     #status {
       font-size: 10px;
       line-height: 1;
@@ -206,6 +249,17 @@
   <div id="three-layer"></div>
   <canvas id="ascii"></canvas>
 
+  <div id="privacy-notice">
+    <p>YOUR CAMERA IS USED FOR IN-BROWSER VISUAL EFFECTS ONLY.<br>
+    NO VIDEO OR IMAGES ARE RECORDED, STORED, OR TRANSMITTED.</p>
+    <p>カメラ映像はブラウザ内のビジュアルエフェクトのみに使用されます。<br>
+    録画・保存・外部への送信は一切行いません。</p>
+    <div id="privacy-notice-footer">
+      <a href="https://www.jianye.online/store-policy-1" target="_blank" class="ui-btn">PRIVACY POLICY →</a>
+      <button class="ui-btn" id="privacy-close">×</button>
+    </div>
+  </div>
+
   <div id="ui">
     <button id="enableCameraBtn" class="ui-btn">CAMERA</button>
     <button id="resetBtn" class="ui-btn">RESET</button>
@@ -225,6 +279,35 @@
       if (bs) bs.style.display = "none";
     }
   </script>
+  <script>
+    (function () {
+      const notice   = document.getElementById('privacy-notice');
+      const closeBtn = document.getElementById('privacy-close');
+      const camBtn   = document.getElementById('enableCameraBtn');
+      let   dismissTimer = null;
+
+      function showNotice() {
+        notice.classList.add('visible');
+        dismissTimer = setTimeout(hideNotice, 10000); // 10秒で自動消去
+      }
+      function hideNotice() {
+        clearTimeout(dismissTimer);
+        notice.classList.remove('visible');
+      }
+
+      closeBtn.addEventListener('click', hideNotice);
+
+      // CAMERAボタン初回押下時のみ表示
+      let shown = false;
+      camBtn.addEventListener('click', () => {
+        if (!shown && camBtn.textContent.trim() === 'CAMERA') {
+          shown = true;
+          showNotice();
+        }
+      });
+    })();
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
   <script type="module" src="./main.js"></script>
