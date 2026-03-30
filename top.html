@@ -130,7 +130,9 @@ function updateCycle() {
 }
 
 // ─── Hover detection ─────────────────────────────────────
-const MODEL_NDC    = { xMin: -0.28, xMax: 0.28, yMin: -0.42, yMax: 0.52 };
+const MODEL_NDC = IS_MOBILE
+  ? { xMin: -0.45, xMax: 0.45, yMin: -0.62, yMax: 0.62 }
+  : { xMin: -0.28, xMax: 0.28, yMin: -0.42, yMax: 0.52 };
 let   hoverProg    = 0;
 let   hoverStartTime = null;
 const HOVER_DWELL  = 0.4;   // 発動までの待機秒
@@ -192,19 +194,18 @@ if (IS_MOBILE) {
     e.preventDefault();
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (mobileHoverOn && labelEl.contains(target)) {
-      location.href = CAPTURE_URL; return;
-    }
     const nx =  (touch.clientX / window.innerWidth)  * 2 - 1;
     const ny = -((touch.clientY / window.innerHeight) * 2 - 1);
     const inModel = nx > MODEL_NDC.xMin && nx < MODEL_NDC.xMax
                  && ny > MODEL_NDC.yMin && ny < MODEL_NDC.yMax;
-    if (!mobileHoverOn && inModel) {
+    if (mobileHoverOn) {
+      if (inModel) { location.href = CAPTURE_URL; return; }
+      else { mobileHoverOn = false; return; }
+    }
+    if (inModel) {
       mobileHoverOn = true;
       mouseMoved = true; mouse.x = nx; mouse.y = ny;
       lastMoveTime = clock.getElapsedTime();
-    } else if (mobileHoverOn) {
-      mobileHoverOn = false;
     }
   }, { passive: false });
 }
