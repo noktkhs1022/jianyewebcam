@@ -7,12 +7,6 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
     canvas { display: block; }
-    #rain {
-      position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 1;
-    }
   </style>
   <script type="importmap">
   {
@@ -24,7 +18,6 @@
   </script>
 </head>
 <body>
-<canvas id="rain"></canvas>
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -33,18 +26,12 @@ const IS_MOBILE = window.innerWidth < 768;
 const clock = new THREE.Clock();
 
 // ─── Renderer ────────────────────────────────────────────
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: !IS_MOBILE, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.5 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-// Three.jsのwidth/height styleを残しつつz-indexのみ追加
-renderer.domElement.style.position = 'fixed';
-renderer.domElement.style.top = '0';
-renderer.domElement.style.left = '0';
-renderer.domElement.style.zIndex = '3';
-renderer.domElement.style.pointerEvents = 'none';
 document.body.appendChild(renderer.domElement);
 
 // ─── Scene / Camera ──────────────────────────────────────
@@ -66,8 +53,8 @@ scene.add(fillLight);
 let headBone = null, neckBone = null;
 
 // ─── Wire overlay ────────────────────────────────────────
-const texMeshes  = []; // { mesh, mats[] }
-const wireMeshes = []; // THREE.SkinnedMesh (wireframe)
+const texMeshes  = [];
+const wireMeshes = [];
 
 function buildWireOverlay(model) {
   model.traverse((obj) => {
@@ -102,17 +89,6 @@ let   cycleStart = 0;
 
 function updateCycle(t) {
   if (texMeshes.length === 0) return;
-
-  // ホバー中はワイヤーフレームを優先
-  if (hoverProg > 0.001) {
-    const wireA = Math.min(1, hoverProg * 2.5);
-    const texA  = 1 - wireA;
-    texMeshes.forEach(({ mats }) => mats.forEach(m => { m.opacity = texA; }));
-    wireMeshes.forEach(wm => { wm.material.opacity = wireA; });
-    cycleState = 'tex'; cycleStart = t; // ホバー終了後はtexから再開
-    return;
-  }
-
   const p = t - cycleStart;
   let texA = 1, wireA = 0;
 
@@ -179,10 +155,9 @@ window.addEventListener('message', (e) => {
 });
 
 // ─── Idle state machine ──────────────────────────────────
-// track → curious (2.5s) → idle (6s) → motion → idle → ...
 let idleState    = 'track';
 let stateStartT  = 0;
-let motionType   = 0; // 0=首を鳴らす  1=ゆっくり首振り
+let motionType   = 0;
 const idleTgt    = { ry: 0, rx: 0, rz: 0 };
 
 function easeInOut(p) {
@@ -192,7 +167,6 @@ function easeInOut(p) {
 function updateIdle(t) {
   const sinceMove = t - lastMoveTime;
 
-  // カーソルが動いたら即トラッキングに戻る
   if (sinceMove < 0.4 && idleState !== 'track') {
     idleState   = 'track';
     stateStartT = t;
@@ -201,14 +175,12 @@ function updateIdle(t) {
   }
 
   switch (idleState) {
-
     case 'track':
       idleTgt.ry = idleTgt.rx = idleTgt.rz = 0;
       if (sinceMove > 2.5) { idleState = 'curious'; stateStartT = t; }
       break;
 
     case 'curious': {
-      // 首を少し傾けて不思議そうに
       const p = easeInOut(Math.min((t - stateStartT) / 1.4, 1.0));
       idleTgt.rz =  p * 0.13;
       idleTgt.ry = -p * 0.06;
@@ -218,7 +190,6 @@ function updateIdle(t) {
     }
 
     case 'idle':
-      // ゆったりした揺れ
       idleTgt.ry = Math.sin(t * 0.13) * 0.05;
       idleTgt.rx = Math.sin(t * 0.09) * 0.02;
       idleTgt.rz = 0.06 + Math.sin(t * 0.11) * 0.02;
@@ -232,12 +203,10 @@ function updateIdle(t) {
     case 'motion': {
       const p = t - stateStartT;
       if (motionType === 0) {
-        // 首を鳴らす：素早く一方向へ→戻る
         if      (p < 0.10) idleTgt.ry = -0.50 * (p / 0.10);
         else if (p < 0.40) idleTgt.ry = -0.50 * (1 - (p - 0.10) / 0.30);
         else               { idleTgt.ry = 0; idleState = 'idle'; stateStartT = t; }
       } else {
-        // ゆっくり首を回して休む
         if (p < 4.5) {
           idleTgt.ry = Math.sin(p * 0.55) * 0.30;
           idleTgt.rz = 0.06 + Math.sin(p * 0.45 + 0.5) * 0.07;
@@ -251,7 +220,7 @@ function updateIdle(t) {
   }
 }
 
-// ─── frameModel（main.jsと同じ、サイズだけ小さく）────────
+// ─── frameModel ──────────────────────────────────────────
 function frameModel(obj) {
   const box    = new THREE.Box3().setFromObject(obj);
   const size   = box.getSize(new THREE.Vector3());
@@ -261,9 +230,9 @@ function frameModel(obj) {
   obj.position.z -= center.z;
   const targetHeight = IS_MOBILE ? 3.15 : 3.55;
   obj.scale.setScalar(targetHeight / Math.max(size.y, 0.0001));
-  const box2   = new THREE.Box3().setFromObject(obj);
+  const box2    = new THREE.Box3().setFromObject(obj);
   const center2 = box2.getCenter(new THREE.Vector3());
-  const size2  = box2.getSize(new THREE.Vector3());
+  const size2   = box2.getSize(new THREE.Vector3());
   obj.position.x -= center2.x;
   obj.position.y -= center2.y;
   obj.position.z -= center2.z;
@@ -285,226 +254,6 @@ new GLTFLoader().load('./model.glb', (gltf) => {
   cycleStart = clock.getElapsedTime();
 });
 
-// ─── Rain system ─────────────────────────────────────────
-const rainCanvas   = document.getElementById('rain');
-const rainCtx      = rainCanvas.getContext('2d');
-const FX_SET       = ' .:-=+*#%@';
-const CHAR_SIZE    = IS_MOBILE ? 11 : 8;
-const LOGO_W_RATIO = IS_MOBILE ? 0.55 : 0.38;
-
-let hoverProg      = 0;
-let hoverStartTime = null;   // モデル上に入った瞬間の時刻
-const HOVER_DWELL  = 0.4;    // 0.4秒以上ホバーしてから発動
-const HOVER_IN     = 1.5;  // /秒
-const HOVER_OUT    = 0.7;  // /秒
-
-// ── モデルホバー判定（スクリーン座標）────────────────
-// NDC座標（-1〜+1）でモデルの表示領域を定義
-// 画面中央付近の矩形：調整が必要な場合は数値を変更
-const MODEL_NDC = { xMin: -0.28, xMax: 0.28, yMin: -0.42, yMax: 0.52 };
-
-function isHoveringModel() {
-  if (!mouseMoved) return false;
-  return mouse.x > MODEL_NDC.xMin && mouse.x < MODEL_NDC.xMax
-      && mouse.y > MODEL_NDC.yMin && mouse.y < MODEL_NDC.yMax;
-}
-
-// ── ロゴマスク（文字セル単位2Dグリッド）──────────────
-const logoImg = new Image();
-let   logoReady  = false;
-let   logoMaskGrid = null; // logoMaskGrid[col][row] = 1 → 描画スキップ
-
-function buildLogoMask() {
-  const W = rainCanvas.width, H = rainCanvas.height;
-  const lw = W * LOGO_W_RATIO;
-  const lh = lw * (logoImg.naturalHeight / logoImg.naturalWidth);
-  const lx = (W - lw) / 2;
-  const ly = H * 0.5 - lh * 0.5;
-
-  const off = document.createElement('canvas');
-  off.width = W; off.height = H;
-  const c2 = off.getContext('2d');
-  c2.drawImage(logoImg, lx, ly, lw, lh);
-  const px = c2.getImageData(0, 0, W, H).data;
-
-  const numCols = Math.ceil(W / CHAR_SIZE);
-  const numRows = Math.ceil(H / CHAR_SIZE);
-  logoMaskGrid = Array.from({ length: numCols }, () => new Uint8Array(numRows));
-
-  for (let c = 0; c < numCols; c++) {
-    for (let r = 0; r < numRows; r++) {
-      const x0 = c * CHAR_SIZE, x1 = Math.min(x0 + CHAR_SIZE, W);
-      const y0 = r * CHAR_SIZE, y1 = Math.min(y0 + CHAR_SIZE, H);
-      let hit = false;
-      outer: for (let y = y0; y < y1; y++) {
-        for (let x = x0; x < x1; x++) {
-          if (px[(y * W + x) * 4 + 3] > 20) { hit = true; break outer; }
-        }
-      }
-      if (hit) logoMaskGrid[c][r] = 1;
-    }
-  }
-}
-
-logoImg.onload = () => { logoReady = true; buildLogoMask(); };
-logoImg.src = './jianye-logo-web-bg.png';
-
-// ── カラム（1文字ずつ上から下へ、逆再生フェードアウト）──
-function fxChar(b) {
-  return FX_SET[Math.min(FX_SET.length - 1, Math.floor(b * FX_SET.length))];
-}
-
-// ランダムな長さのランとギャップで1列分の文字配列を生成
-function generateChars(H) {
-  const numRows = Math.ceil(H / CHAR_SIZE) + 25;
-  const chars = [];
-  let r = 0;
-  while (r < numRows) {
-    const runLen = 4 + Math.floor(Math.random() * 14);
-    for (let i = 0; i < runLen; i++, r++) {
-      chars.push(fxChar(1 - i / runLen)); // 先頭明るい、末尾暗い
-    }
-    const gapLen = 3 + Math.floor(Math.random() * 10);
-    for (let i = 0; i < gapLen; i++, r++) {
-      chars.push(null); // 空白行
-    }
-  }
-  return chars;
-}
-
-function makeCol(H) {
-  return {
-    front: -(1 + Math.random() * 22), // 負の値＝開始ディレイ（行単位）
-    speed: 6 + Math.random() * 9,     // 行/秒
-    chars: generateChars(H),
-  };
-}
-
-let cols = [];
-let prevRainT = -1;
-
-function initCols() {
-  const W = rainCanvas.width, H = rainCanvas.height;
-  const n = Math.ceil(W / CHAR_SIZE);
-  cols = Array.from({ length: n }, () => makeCol(H));
-}
-
-function resizeRain() {
-  rainCanvas.width  = window.innerWidth;
-  rainCanvas.height = window.innerHeight;
-  if (logoReady) buildLogoMask();
-  initCols();
-}
-resizeRain();
-
-// ── 雨描画 ───────────────────────────────────────────
-function updateRain() {
-  const now = clock.getElapsedTime();
-  const dt  = prevRainT < 0 ? 0 : Math.min(now - prevRainT, 0.05);
-  prevRainT = now;
-
-  // ── hoverProgの更新 ──────────────────────────────
-  const over = isHoveringModel();
-  if (over) {
-    if (hoverStartTime === null) hoverStartTime = now;
-    const dwelt = (now - hoverStartTime) >= HOVER_DWELL;
-    hoverProg = dwelt
-      ? Math.min(1, hoverProg + HOVER_IN * dt)
-      : Math.max(0, hoverProg - HOVER_OUT * 0.3 * dt);
-  } else {
-    hoverStartTime = null;
-    hoverProg = Math.max(0, hoverProg - HOVER_OUT * dt);
-  }
-
-  const W = rainCanvas.width, H = rainCanvas.height;
-  rainCtx.clearRect(0, 0, W, H);
-  if (hoverProg <= 0.001) return;
-
-  // ── フェーズ制御 ─────────────────────────────────
-  // Phase 1 (hoverProg 0→0.35): グリッチ散乱、背景まだ白
-  // Phase 2 (hoverProg 0.25→0.75): 背景じわじわ暗転
-  // Phase 3 (hoverProg 0.5→1.0): ASCII密度上昇、ロゴ浮上
-  const bgProg    = Math.max(0, Math.min(1, (hoverProg - 0.25) / 0.75));
-  const glitchAmt = Math.max(0, 1 - hoverProg * 1.8); // 序盤に最大、後半消える
-  const denseProg = Math.max(0, Math.min(1, (hoverProg - 0.3) / 0.7));
-
-  // 背景暗化（フェーズ2から）
-  if (bgProg > 0) {
-    rainCtx.fillStyle = `rgba(0,0,0,${bgProg * 0.80})`;
-    rainCtx.fillRect(0, 0, W, H);
-  }
-
-  // 文字色（背景暗転に合わせてチャコール→ライトグレー）
-  const cv = Math.round(51 + 160 * bgProg);
-
-  rainCtx.font = `${CHAR_SIZE}px monospace`;
-
-  const numCols = Math.ceil(W / CHAR_SIZE);
-  if (cols.length !== numCols) initCols();
-
-  // ── Phase1: 散乱グリッチ文字（序盤のみ）─────────
-  if (glitchAmt > 0.05) {
-    const gCount = Math.floor(glitchAmt * 55 * (W / 1440));
-    for (let i = 0; i < gCount; i++) {
-      const gx = Math.floor(Math.random() * numCols) * CHAR_SIZE;
-      const gy = Math.floor(Math.random() * Math.ceil(H / CHAR_SIZE)) * CHAR_SIZE + CHAR_SIZE;
-      const ga = glitchAmt * (0.4 + Math.random() * 0.6) * hoverProg;
-      rainCtx.fillStyle = `rgba(${cv},${cv},${cv},${ga})`;
-      rainCtx.fillText(fxChar(Math.random()), gx, gy);
-    }
-  }
-
-  // ── Phase3: カラム更新と描画 ─────────────────────
-  if (denseProg > 0) {
-    for (let c = 0; c < numCols; c++) {
-      const col = cols[c];
-      if (over) {
-        col.front += col.speed * dt;
-        if (col.front >= col.chars.length) {
-          cols[c] = makeCol(H);
-          cols[c].front = -(1 + Math.random() * 18);
-        }
-      } else {
-        col.front -= col.speed * 2.0 * dt;
-      }
-    }
-
-    for (let c = 0; c < numCols; c++) {
-      const col   = cols[c];
-      const front = Math.floor(col.front);
-      if (front <= 0) continue;
-
-      // 列ごとにグリッチxオフセット（序盤のみ）
-      const xOff = glitchAmt > 0.1 && Math.random() < glitchAmt * 0.12
-        ? (Math.random() - 0.5) * CHAR_SIZE * 3.5 : 0;
-
-      const limit = Math.min(front, col.chars.length);
-      for (let row = 0; row < limit; row++) {
-        const ch = col.chars[row];
-        if (ch === null) continue;
-        const cy = row * CHAR_SIZE + CHAR_SIZE;
-        if (cy > H) break;
-
-        // ロゴ領域はスキップ（ASCII不在でシルエットを表現）
-        if (logoMaskGrid && c < logoMaskGrid.length && row < logoMaskGrid[c].length
-            && logoMaskGrid[c][row]) continue;
-
-        const fromFront = front - 1 - row;
-        const fade  = Math.max(0.25, 1 - fromFront / 28.0);
-        const alpha = Math.min(1, fade * denseProg);
-        rainCtx.fillStyle = `rgba(${cv},${cv},${cv},${alpha})`;
-        rainCtx.fillText(ch, c * CHAR_SIZE + xOff, cy);
-      }
-    }
-  }
-}
-
-// ── クリックでCAPTUREページへ ──────────────────────────
-const CAPTURE_URL = 'https://www.jianye.online/capture';
-window.addEventListener('click', () => {
-  if (hoverProg > 0.3) window.top.location.href = CAPTURE_URL;
-});
-
 // ─── Noise ───────────────────────────────────────────────
 const noise = (t, f, p) =>
   Math.sin(t * f + p) * 0.5 +
@@ -518,15 +267,12 @@ function animate() {
 
   updateIdle(t);
   updateCycle(t);
-  updateRain();
 
-  // トラッキング量（アイドル中はゼロへ収束）
   const tr = idleState === 'track' ? 1.0 : 0.0;
   const tgtRy = mouse.x  * 0.50 * tr + idleTgt.ry;
   const tgtRx = -mouse.y * 0.28 * tr + idleTgt.rx + 0.25;
   const tgtRz = idleTgt.rz;
 
-  // Spring-damper
   vel.ry = vel.ry * DAMPING + (tgtRy - cur.ry) * SPRING;
   vel.rx = vel.rx * DAMPING + (tgtRx - cur.rx) * SPRING;
   vel.rz = vel.rz * DAMPING + (tgtRz - cur.rz) * SPRING;
@@ -534,28 +280,26 @@ function animate() {
   cur.rx += vel.rx;
   cur.rz += vel.rz;
 
-  // 呼吸サイクル（~4.8秒）
+  // 呼吸サイクル
   const breath = Math.sin(t * 1.31) * 0.65 + Math.sin(t * 0.655) * 0.35;
 
-  // Head（常時微動 + 追従）
   if (headBone) {
     headBone.rotation.y = cur.ry + noise(t, 0.22, 0.0) * 0.012;
     headBone.rotation.x = cur.rx + noise(t, 0.28, 1.1) * 0.009;
     headBone.rotation.z = cur.rz + noise(t, 0.18, 2.3) * 0.009;
   }
-  // Neck（30%追従 + 微動）
   if (neckBone) {
     neckBone.rotation.y = cur.ry * 0.30 + noise(t, 0.22, 0.0) * 0.005;
     neckBone.rotation.x = cur.rx * 0.20 + noise(t, 0.28, 1.1) * 0.004;
     neckBone.rotation.z = cur.rz * 0.20 + noise(t, 0.18, 2.3) * 0.004;
   }
-  // 心拍（lub-dub、65BPM）
+
+  // 心拍（65BPM）
   const hbPhase = (t % 0.923) / 0.923;
   const lub = Math.exp(-Math.pow(hbPhase - 0.05, 2) / 0.0015);
   const dub = Math.exp(-Math.pow(hbPhase - 0.22, 2) / 0.0025) * 0.55;
-  const hb  = (lub + dub) * 0.27; // 3% of z=9.0
+  const hb  = (lub + dub) * 0.27;
 
-  // カメラ（呼吸 + 心拍）
   camera.position.y = 1.2 + breath * 0.010;
   camera.position.z = 9.0 - hb;
   camera.lookAt(0, 0.2, 0);
@@ -570,7 +314,6 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  resizeRain();
 });
 </script>
 </body>
