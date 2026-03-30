@@ -39,7 +39,12 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.domElement.style.cssText = 'position:fixed;inset:0;z-index:3;pointer-events:none;';
+// Three.jsのwidth/height styleを残しつつz-indexのみ追加
+renderer.domElement.style.position = 'fixed';
+renderer.domElement.style.top = '0';
+renderer.domElement.style.left = '0';
+renderer.domElement.style.zIndex = '3';
+renderer.domElement.style.pointerEvents = 'none';
 document.body.appendChild(renderer.domElement);
 
 // ─── Scene / Camera ──────────────────────────────────────
@@ -285,7 +290,7 @@ const rainCanvas   = document.getElementById('rain');
 const rainCtx      = rainCanvas.getContext('2d');
 const FX_SET       = ' .:-=+*#%@';
 const CHAR_SIZE    = IS_MOBILE ? 11 : 8;
-const LOGO_W_RATIO = IS_MOBILE ? 0.82 : 0.65;
+const LOGO_W_RATIO = IS_MOBILE ? 0.55 : 0.38;
 
 let hoverProg      = 0;
 let hoverStartTime = null;   // モデル上に入った瞬間の時刻
