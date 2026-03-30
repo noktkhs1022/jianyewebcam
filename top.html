@@ -308,6 +308,7 @@ function animate() {
   // カメラ（呼吸 + 心拍）
   camera.position.y = 1.2 + breath * 0.010;
   camera.position.z = 9.0 - hb;
+  camera.lookAt(0, 0, 0);
 
   renderer.render(scene, camera);
 }
