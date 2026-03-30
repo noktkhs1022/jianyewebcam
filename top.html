@@ -276,7 +276,6 @@ new GLTFLoader().load('./model.glb', (gltf) => {
   });
   frameModel(model);
   buildWireOverlay(model);
-  buildHoverMesh(model);
   cycleStart = clock.getElapsedTime();
 });
 
@@ -287,29 +286,21 @@ const FX_SET       = ' .:-=+*#%@';
 const CHAR_SIZE    = IS_MOBILE ? 11 : 8;
 const LOGO_W_RATIO = IS_MOBILE ? 0.82 : 0.65;
 
-let hoverProg = 0;
-const HOVER_IN  = 1 / 50;  // ~0.8s
-const HOVER_OUT = 1 / 100; // ~1.7s
+let hoverProg      = 0;
+let hoverStartTime = null;   // モデル上に入った瞬間の時刻
+const HOVER_DWELL  = 0.4;    // 0.4秒以上ホバーしてから発動
+const HOVER_IN     = 1 / 50;
+const HOVER_OUT    = 1 / 100;
 
-// ── モデルホバー判定（Raycaster）─────────────────────
-const raycaster = new THREE.Raycaster();
-let   hoverMesh  = null;
-
-function buildHoverMesh(model) {
-  const box  = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const ctr  = box.getCenter(new THREE.Vector3());
-  const geo  = new THREE.BoxGeometry(size.x * 0.9, size.y, size.z * 0.9);
-  const mat  = new THREE.MeshBasicMaterial({ visible: false });
-  hoverMesh  = new THREE.Mesh(geo, mat);
-  hoverMesh.position.copy(ctr);
-  scene.add(hoverMesh);
-}
+// ── モデルホバー判定（スクリーン座標）────────────────
+// NDC座標（-1〜+1）でモデルの表示領域を定義
+// 画面中央付近の矩形：調整が必要な場合は数値を変更
+const MODEL_NDC = { xMin: -0.28, xMax: 0.28, yMin: -0.42, yMax: 0.52 };
 
 function isHoveringModel() {
-  if (!hoverMesh || !mouseMoved) return false;
-  raycaster.setFromCamera(new THREE.Vector2(mouse.x, mouse.y), camera);
-  return raycaster.intersectObject(hoverMesh).length > 0;
+  if (!mouseMoved) return false;
+  return mouse.x > MODEL_NDC.xMin && mouse.x < MODEL_NDC.xMax
+      && mouse.y > MODEL_NDC.yMin && mouse.y < MODEL_NDC.yMax;
 }
 
 // ── ロゴマスク ─────────────────────────────────────────
@@ -372,10 +363,18 @@ resizeRain();
 
 // ── 雨描画（グリッチ対応）────────────────────────────
 function updateRain() {
-  const active = isHoveringModel();
-  hoverProg = active
-    ? Math.min(1, hoverProg + HOVER_IN)
-    : Math.max(0, hoverProg - HOVER_OUT);
+  const now  = clock.getElapsedTime();
+  const over = isHoveringModel();
+  if (over) {
+    if (hoverStartTime === null) hoverStartTime = now;
+    const dwelt = (now - hoverStartTime) >= HOVER_DWELL;
+    hoverProg = dwelt
+      ? Math.min(1, hoverProg + HOVER_IN)
+      : Math.max(0, hoverProg - HOVER_OUT * 0.3);
+  } else {
+    hoverStartTime = null;
+    hoverProg = Math.max(0, hoverProg - HOVER_OUT);
+  }
 
   const W = rainCanvas.width, H = rainCanvas.height;
   rainCtx.clearRect(0, 0, W, H);
