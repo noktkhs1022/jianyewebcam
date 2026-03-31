@@ -44,7 +44,7 @@
         0 0 18px #ff1100,
         0 0 36px #cc0000;
       animation: flicker 6s step-end infinite;
-      padding: 0 4px;
+      padding: 0 20px;
     }
 
     .sep {
@@ -146,11 +146,6 @@
         span.className = 'ticker-text';
         span.textContent = item;
         wrap.appendChild(span);
-
-        const sep = document.createElement('span');
-        sep.className = 'sep';
-        sep.textContent = '◆';
-        wrap.appendChild(sep);
       });
       return wrap;
     }
