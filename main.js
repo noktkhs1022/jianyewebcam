@@ -34,7 +34,6 @@ const asciiCtx = asciiCanvas.getContext("2d");
 
 const video = document.getElementById("video");
 const enableCameraBtn = document.getElementById("enableCameraBtn");
-const resetBtn = document.getElementById("resetBtn");
 const captureBtn = document.getElementById("captureBtn");
 const statusEl = document.getElementById("status");
 
@@ -1055,21 +1054,6 @@ enableCameraBtn.addEventListener("click", async () => {
   }
 });
 
-resetBtn.addEventListener("click", () => {
-  state.faceBoxNorm = null;
-  state.zoom01 = 0;
-  state.glitchBurst = 0;
-  state.lastMpTime = 0;
-  state.objectProximity01 = 0;
-  state.asciiFrameCount = 0;
-
-  if (state.source === "camera" && state.webcamReady) stopCamera();
-
-  state.source = "object";
-  enableCameraBtn.textContent = "CAMERA";
-  broadcastUpdate("CAMERA", "SOURCE: OBJECT");
-  updateStatus();
-});
 
 // =====================================================
 // RESIZE
