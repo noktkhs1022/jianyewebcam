@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=DotGothic16&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -21,9 +21,9 @@
     }
 
     .ticker-track {
-      display: flex;
+      display: inline-flex;
       white-space: nowrap;
-      animation: ticker-scroll 28s linear infinite;
+      animation: ticker-scroll 12s linear infinite;
     }
 
     .ticker-content {
@@ -33,7 +33,7 @@
     }
 
     .ticker-text {
-      font-family: 'VT323', monospace;
+      font-family: 'VT323', 'DotGothic16', monospace;
       font-size: 22px;
       line-height: 1;
       letter-spacing: 0.06em;
@@ -45,18 +45,6 @@
         0 0 36px #cc0000;
       animation: flicker 6s step-end infinite;
       padding: 0 20px;
-    }
-
-    .sep {
-      font-family: 'VT323', monospace;
-      font-size: 18px;
-      color: #ff2200;
-      text-shadow:
-        0 0 3px #ff2200,
-        0 0 10px #ff1100;
-      opacity: 0.55;
-      padding: 0 18px;
-      animation: flicker 6s step-end infinite;
     }
 
     @keyframes ticker-scroll {
@@ -75,7 +63,6 @@
 
     @media (max-width: 600px) {
       .ticker-text { font-size: 18px; }
-      .sep         { font-size: 15px; padding: 0 12px; }
     }
 
     /* type=all（モバイル）用スタイル上書き */
@@ -84,14 +71,6 @@
       color: #404040;
       text-shadow: none;
       animation: none;
-    }
-    body.type-all .sep {
-      font-size: 11px;
-      color: #404040;
-      text-shadow: none;
-      animation: none;
-      opacity: 0.4;
-      padding: 0 10px;
     }
   </style>
 </head>
@@ -150,9 +129,12 @@
       return wrap;
     }
 
-    const track = document.getElementById('ticker-track');
-    track.appendChild(buildContent()); // copy 1
-    track.appendChild(buildContent()); // copy 2 — シームレスループ用
+    // フォント読み込み後にアニメーション開始（幅の計算ズレを防ぐ）
+    document.fonts.ready.then(() => {
+      const track = document.getElementById('ticker-track');
+      track.appendChild(buildContent()); // copy 1
+      track.appendChild(buildContent()); // copy 2 — シームレスループ用
+    });
   </script>
 </body>
 </html>
