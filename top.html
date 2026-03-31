@@ -131,7 +131,7 @@ function updateCycle() {
 
 // ─── Hover detection ─────────────────────────────────────
 const MODEL_NDC = IS_MOBILE
-  ? { xMin: -0.95, xMax: 0.95, yMin: -0.95, yMax: 0.95 }
+  ? { xMin: -0.38, xMax: 0.38, yMin: -0.70, yMax: 0.55 }
   : { xMin: -0.28, xMax: 0.28, yMin: -0.42, yMax: 0.52 };
 let   hoverProg    = 0;
 let   hoverStartTime = null;
@@ -198,7 +198,12 @@ if (IS_MOBILE) {
     const inModel = nx > MODEL_NDC.xMin && nx < MODEL_NDC.xMax
                  && ny > MODEL_NDC.yMin && ny < MODEL_NDC.yMax;
     if (mobileHoverOn) {
-      if (inModel) { window.open(CAPTURE_URL, '_blank'); return; }
+      if (inModel) {
+        const a = document.createElement('a');
+        a.href = CAPTURE_URL; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        return;
+      }
       else { mobileHoverOn = false; return; }
     }
     if (inModel) {
