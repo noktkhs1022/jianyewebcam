@@ -189,29 +189,31 @@ labelEl.addEventListener('click', () => {
 
 // ─── Mobile tap-to-toggle ────────────────────────────────
 let mobileHoverOn = false;
+let pendingNav = false;
 if (IS_MOBILE) {
   document.addEventListener('touchstart', (e) => {
-    e.preventDefault();
     const touch = e.touches[0];
     const nx =  (touch.clientX / window.innerWidth)  * 2 - 1;
     const ny = -((touch.clientY / window.innerHeight) * 2 - 1);
     const inModel = nx > MODEL_NDC.xMin && nx < MODEL_NDC.xMax
                  && ny > MODEL_NDC.yMin && ny < MODEL_NDC.yMax;
+    pendingNav = false;
     if (mobileHoverOn) {
-      if (inModel) {
-        const a = document.createElement('a');
-        a.href = CAPTURE_URL; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        return;
-      }
-      else { mobileHoverOn = false; return; }
-    }
-    if (inModel) {
+      if (inModel) { pendingNav = true; }
+      else { mobileHoverOn = false; }
+    } else if (inModel) {
       mobileHoverOn = true;
       mouseMoved = true; mouse.x = nx; mouse.y = ny;
       lastMoveTime = clock.getElapsedTime();
     }
-  }, { passive: false });
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (pendingNav) {
+      pendingNav = false;
+      window.open(CAPTURE_URL, '_blank');
+    }
+  });
 }
 
 // ─── Spring-damper ───────────────────────────────────────
