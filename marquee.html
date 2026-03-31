@@ -56,8 +56,11 @@
       96%        { opacity: 1;    }
     }
 
+    .ticker-text.cjk { font-size: 17px; }
+
     @media (max-width: 600px) {
-      .ticker-text { font-size: 18px; }
+      .ticker-text     { font-size: 16px; }
+      .ticker-text.cjk { font-size: 13px; }
     }
 
     /* type=all（モバイル）用スタイル上書き */
@@ -107,13 +110,18 @@
     // スクロール速度（px/秒） ── 数値を上げると速くなる
     const PX_PER_SEC = 80;
 
+    function isCJK(text) {
+      return /[\u3040-\u9fff\uf900-\ufaff]/.test(text);
+    }
+
     function buildContent() {
       const wrap = document.createElement('div');
       wrap.className = 'ticker-content';
       items.forEach(item => {
         const span = document.createElement('span');
-        span.className = 'ticker-text';
-        span.textContent = (item && item.gap) ? '　　' : item;
+        const text = (item && item.gap) ? '　　' : item;
+        span.className = 'ticker-text' + (isCJK(text) ? ' cjk' : '');
+        span.textContent = text;
         wrap.appendChild(span);
       });
       return wrap;
