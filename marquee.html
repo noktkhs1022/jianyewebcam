@@ -23,7 +23,7 @@
     .ticker-track {
       display: inline-flex;
       white-space: nowrap;
-      animation: ticker-scroll 12s linear infinite;
+      will-change: transform;
     }
 
     .ticker-content {
@@ -45,11 +45,6 @@
         0 0 36px #cc0000;
       animation: flicker 6s step-end infinite;
       padding: 0 20px;
-    }
-
-    @keyframes ticker-scroll {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
     }
 
     @keyframes flicker {
@@ -97,7 +92,6 @@
     };
     // ──────────────────────────────────────────────────────
 
-    // allはshop + 全角スペース2個 + collectionを自動結合（モバイル用）
     const GAP = { gap: true };
     CONTENT.all = [
       '[SHOP] ' + CONTENT.shop[0], ...CONTENT.shop.slice(1),
@@ -106,34 +100,49 @@
       GAP,
     ];
 
-    const type  = new URLSearchParams(location.search).get('type') || 'shop';
+    const type = new URLSearchParams(location.search).get('type') || 'shop';
     if (type === 'all') document.body.classList.add('type-all');
     const items = CONTENT[type] ?? CONTENT.shop;
+
+    // スクロール速度（px/秒） ── 数値を上げると速くなる
+    const PX_PER_SEC = 80;
 
     function buildContent() {
       const wrap = document.createElement('div');
       wrap.className = 'ticker-content';
       items.forEach(item => {
-        if (item && item.gap) {
-          const gap = document.createElement('span');
-          gap.className = 'ticker-text';
-          gap.textContent = '　　';
-          wrap.appendChild(gap);
-          return;
-        }
         const span = document.createElement('span');
         span.className = 'ticker-text';
-        span.textContent = item;
+        span.textContent = (item && item.gap) ? '　　' : item;
         wrap.appendChild(span);
       });
       return wrap;
     }
 
-    // フォント読み込み後にアニメーション開始（幅の計算ズレを防ぐ）
     document.fonts.ready.then(() => {
       const track = document.getElementById('ticker-track');
-      track.appendChild(buildContent()); // copy 1
-      track.appendChild(buildContent()); // copy 2 — シームレスループ用
+      const copy1 = buildContent();
+      const copy2 = buildContent();
+      track.appendChild(copy1);
+      track.appendChild(copy2);
+
+      // 1フレーム後に実際のピクセル幅を計測してからアニメーション開始
+      requestAnimationFrame(() => {
+        const copyWidth = copy1.getBoundingClientRect().width;
+        let pos  = 0;
+        let last = null;
+
+        function tick(now) {
+          if (last !== null) {
+            pos -= PX_PER_SEC * (now - last) / 1000;
+            if (pos <= -copyWidth) pos += copyWidth;
+            track.style.transform = `translateX(${pos}px)`;
+          }
+          last = now;
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
     });
   </script>
 </body>
