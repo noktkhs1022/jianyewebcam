@@ -77,6 +77,22 @@
       .ticker-text { font-size: 18px; }
       .sep         { font-size: 15px; padding: 0 12px; }
     }
+
+    /* type=all（モバイル）用スタイル上書き */
+    body.type-all .ticker-text {
+      font-size: 13px;
+      color: #404040;
+      text-shadow: none;
+      animation: none;
+    }
+    body.type-all .sep {
+      font-size: 11px;
+      color: #404040;
+      text-shadow: none;
+      animation: none;
+      opacity: 0.4;
+      padding: 0 10px;
+    }
   </style>
 </head>
 <body>
@@ -112,6 +128,7 @@
     ];
 
     const type  = new URLSearchParams(location.search).get('type') || 'shop';
+    if (type === 'all') document.body.classList.add('type-all');
     const items = CONTENT[type] ?? CONTENT.shop;
 
     function buildContent() {
