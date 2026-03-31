@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOOT TEST</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'VT323', monospace;
+    }
+
+    #boot-lines {
+      text-align: left;
+      min-width: 300px;
+      font-size: 13px;
+      line-height: 1.75;
+      letter-spacing: 0.05em;
+      color: black;
+    }
+
+    #restart {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      font-family: 'VT323', monospace;
+      font-size: 12px;
+      padding: 4px 8px;
+      border: 1px solid black;
+      background: white;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    #restart:hover { background: black; color: white; }
+  </style>
+</head>
+<body>
+  <div id="boot-lines"></div>
+  <button id="restart">▸ RESTART</button>
+
+  <script>
+    const bootLines = document.getElementById('boot-lines');
+
+    // ── グリッチ文字セット ────────────────────────────────
+    const GLITCH = '@#$%&*!?/<>[]{}|\\^~=+';
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    // 1文字ずつspanで構築するタイプライター
+    async function typewriterLine(text, charMs = 14) {
+      const div = document.createElement('div');
+      bootLines.appendChild(div);
+      for (const ch of text) {
+        const span = document.createElement('span');
+        span.textContent = ch;
+        div.appendChild(span);
+        await sleep(charMs);
+      }
+    }
+
+    async function runZhuTransform() {
+      // 全spanを取得して逆順に朱へ変換
+      const spans = [...bootLines.querySelectorAll('span')];
+      for (let i = spans.length - 1; i >= 0; i--) {
+        if (spans[i].textContent !== ' ') {
+          spans[i].textContent = '朱';
+        }
+        await sleep(10);
+      }
+
+      await sleep(120);
+
+      // ASCII グリッチフェーズ
+      const nonSpace = spans.filter(s => s.textContent !== ' ');
+      for (let g = 0; g < 7; g++) {
+        nonSpace.forEach(s => { s.textContent = rand(GLITCH); });
+        await sleep(45 + Math.random() * 35);
+      }
+
+      // 最後に朱で静止してからフェード
+      nonSpace.forEach(s => { s.textContent = '朱'; });
+      await sleep(180);
+    }
+
+    async function runBoot() {
+      bootLines.innerHTML = '';
+      bootLines.style.transition = 'none';
+      bootLines.style.opacity = '1';
+
+      await typewriterLine('\u25C8 SURVEILLANCE SYSTEM v2.4.1', 11);
+      await sleep(60);
+      await typewriterLine('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', 5);
+      await sleep(50);
+      await typewriterLine('\u25B8 INITIALIZING CORE...', 13);
+      await sleep(60);
+      await typewriterLine('\u25B8 LOADING NEURAL ASSETS...', 13);
+      await sleep(60);
+      await typewriterLine('\u25B8 CALIBRATING OPTICS...', 13);
+      await sleep(80);
+      await typewriterLine('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', 5);
+      await sleep(80);
+      await typewriterLine('SYSTEM ONLINE.', 22);
+      await sleep(350);
+
+      await runZhuTransform();
+
+      // フェードアウト
+      bootLines.style.transition = 'opacity 0.65s ease';
+      bootLines.style.opacity = '0';
+    }
+
+    runBoot();
+    document.getElementById('restart').addEventListener('click', runBoot);
+  </script>
+</body>
+</html>
