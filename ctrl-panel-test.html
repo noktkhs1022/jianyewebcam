@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CTRL PANEL TEST</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+
+  <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --thumb-color: #000000;
+      --track-color: rgba(0,0,0,0.22);
+      --panel-bg: rgba(255,255,255,0.97);
+      --panel-fg: #000000;
+      --panel-border: rgba(0,0,0,0.9);
+      --panel-muted: rgba(0,0,0,0.5);
+      --panel-sep: rgba(0,0,0,0.12);
+    }
+
+    html, body {
+      margin: 0; padding: 0;
+      overflow: hidden; width: 100%; height: 100%;
+      background: #ffffff;
+      font-family: "VT323", monospace;
+      transition: background 0.3s ease;
+    }
+
+    #three-layer {
+      position: fixed; inset: 0;
+      z-index: 1; opacity: 0; pointer-events: none;
+    }
+
+    #ascii {
+      position: fixed; inset: 0;
+      display: block; width: 100vw; height: 100vh;
+      z-index: 10; pointer-events: none;
+    }
+
+    #grain {
+      position: fixed; inset: 0;
+      z-index: 15; pointer-events: none;
+      width: 100%; height: 100%; opacity: 0.055;
+    }
+
+    /* ── UI ROW ── */
+    #ui {
+      position: fixed; left: 40px; bottom: 40px;
+      z-index: 20; display: flex; gap: 5px;
+      align-items: center; flex-wrap: wrap;
+    }
+    .ui-btn {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.9);
+      background: rgba(255,255,255,0.92);
+      color: black;
+      font-family: "VT323", monospace;
+      font-size: 10px; line-height: 1;
+      padding: 2px 4px; cursor: pointer;
+      border-radius: 0; letter-spacing: 0.02em;
+    }
+    .ui-btn:active { background: black !important; color: white !important; }
+    #status {
+      font-size: 10px; color: black;
+      letter-spacing: 0.02em; user-select: none;
+    }
+
+    /* ── CONTROL PANEL ── */
+    #ctrl-panel {
+      position: fixed; left: 40px; bottom: 65px;
+      z-index: 25; width: 214px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      font-family: "VT323", monospace;
+      font-size: 10px; line-height: 1.3;
+      letter-spacing: 0.02em; color: var(--panel-fg);
+      opacity: 0; pointer-events: none;
+      transform: translateY(5px);
+      transition: opacity 0.18s ease, transform 0.18s ease,
+                  background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    #ctrl-panel.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+    #ctrl-header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px 4px;
+      border-bottom: 1px solid var(--panel-sep);
+    }
+    #ctrl-title { font-size: 10px; letter-spacing: 0.06em; opacity: 0.85; }
+    #ctrl-actions { display: flex; gap: 4px; }
+
+    .panel-btn {
+      appearance: none;
+      border: 1px solid var(--panel-border);
+      background: transparent; color: var(--panel-fg);
+      font-family: "VT323", monospace;
+      font-size: 9px; line-height: 1;
+      padding: 1px 5px; cursor: pointer;
+      border-radius: 0; letter-spacing: 0.02em;
+      transition: background 0.1s, color 0.1s;
+    }
+    .panel-btn:hover { background: var(--panel-fg); color: var(--panel-bg); }
+
+    #ctrl-body {
+      padding: 7px 9px 9px;
+      display: flex; flex-direction: column; gap: 0;
+      max-height: calc(100vh - 140px);
+      overflow-y: auto; scrollbar-width: none;
+    }
+    #ctrl-body::-webkit-scrollbar { display: none; }
+
+    .ctrl-sep { border: none; border-top: 1px solid var(--panel-sep); margin: 5px 0; }
+
+    .ctrl-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 5px; }
+    .ctrl-row:last-child { margin-bottom: 0; }
+
+    .ctrl-label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 9px; letter-spacing: 0.05em; color: var(--panel-muted);
+    }
+    .ctrl-val { color: var(--panel-fg); min-width: 38px; text-align: right; font-size: 9px; }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 1px;
+      background: var(--track-color);
+      outline: none; cursor: pointer; margin: 3px 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 7px; height: 7px;
+      background: var(--thumb-color);
+      border-radius: 0; cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 7px; height: 7px;
+      background: var(--thumb-color);
+      border-radius: 0; border: none; cursor: pointer;
+    }
+
+    .color-grid { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+    .color-btn {
+      appearance: none;
+      border: 1px solid var(--panel-border);
+      background: transparent; color: var(--panel-fg);
+      font-family: "VT323", monospace;
+      font-size: 9px; padding: 1px 5px;
+      cursor: pointer; border-radius: 0; line-height: 1.3;
+      letter-spacing: 0.03em;
+      transition: background 0.1s, color 0.1s, border-color 0.2s;
+    }
+    .color-btn.active { background: var(--panel-fg); color: var(--panel-bg); }
+
+    #test-badge {
+      position: fixed; right: 40px; bottom: 40px;
+      z-index: 20; font-size: 9px; letter-spacing: 0.08em;
+      color: rgba(0,0,0,0.3); user-select: none; pointer-events: none;
+    }
+
+    body { cursor: crosshair; }
+  </style>
+</head>
+<body>
+
+  <div id="three-layer"></div>
+  <canvas id="grain"></canvas>
+  <canvas id="ascii"></canvas>
+
+  <!-- CONTROL PANEL -->
+  <div id="ctrl-panel">
+    <div id="ctrl-header">
+      <span id="ctrl-title">◈ SETTINGS</span>
+      <div id="ctrl-actions">
+        <button class="panel-btn" id="resetBtn">RESET</button>
+        <button class="panel-btn" id="closePanelBtn">×</button>
+      </div>
+    </div>
+    <div id="ctrl-body">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">RESOLUTION <span class="ctrl-val" id="val-cols">120</span></div>
+        <input type="range" id="sl-cols" min="30" max="200" step="2" value="120">
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">SPECIAL 朱 <span class="ctrl-val" id="val-special">0.008</span></div>
+        <input type="range" id="sl-special" min="0" max="0.12" step="0.001" value="0.008">
+      </div>
+
+      <hr class="ctrl-sep">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">CONTRAST <span class="ctrl-val" id="val-contrast">1.56</span></div>
+        <input type="range" id="sl-contrast" min="0.5" max="3.5" step="0.02" value="1.56">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">GAMMA <span class="ctrl-val" id="val-gamma">0.82</span></div>
+        <input type="range" id="sl-gamma" min="0.3" max="1.8" step="0.01" value="0.82">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">BRIGHTNESS <span class="ctrl-val" id="val-bright">1.00</span></div>
+        <input type="range" id="sl-bright" min="0.4" max="2.0" step="0.02" value="1.0">
+      </div>
+
+      <hr class="ctrl-sep">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">SCANLINE <span class="ctrl-val" id="val-scan">0.042</span></div>
+        <input type="range" id="sl-scan" min="0" max="0.22" step="0.002" value="0.042">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">FLICKER <span class="ctrl-val" id="val-flicker">0.010</span></div>
+        <input type="range" id="sl-flicker" min="0" max="0.06" step="0.001" value="0.010">
+      </div>
+
+      <hr class="ctrl-sep">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">FILM GRAIN <span class="ctrl-val" id="val-grain">0.055</span></div>
+        <input type="range" id="sl-grain" min="0" max="0.25" step="0.005" value="0.055">
+      </div>
+
+      <hr class="ctrl-sep">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">COLOR MODE</div>
+        <div class="color-grid">
+          <button class="color-btn active" data-mode="MONO">MONO</button>
+          <button class="color-btn" data-mode="GREEN">GREEN</button>
+          <button class="color-btn" data-mode="AMBER">AMBER</button>
+          <button class="color-btn" data-mode="RED">RED</button>
+          <button class="color-btn" data-mode="INVERT">INVERT</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- UI ROW -->
+  <div id="ui">
+    <button class="ui-btn" id="settingsBtn">SETTINGS</button>
+    <div id="status">LOADING...</div>
+  </div>
+
+  <div id="test-badge">CTRL PANEL TEST BUILD</div>
+
+  <script type="module">
+  import * as THREE from "three";
+  import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+  // =====================================================
+  // DEFAULTS & CONFIG
+  // =====================================================
+  const DEFAULTS = Object.freeze({
+    cols:       120,
+    special:    0.008,
+    contrast:   1.56,
+    gamma:      0.82,
+    brightness: 1.0,
+    scanline:   0.042,
+    flicker:    0.010,
+    grain:      0.055,
+    colorMode:  'MONO',
+  });
+
+  const cfg = { ...DEFAULTS };
+
+  const THEMES = {
+    MONO:   {
+      bg: '#ffffff', fg: '0,0,0',
+      panelBg: 'rgba(255,255,255,0.97)', panelFg: '#000000',
+      panelBorder: 'rgba(0,0,0,0.9)',    panelMuted: 'rgba(0,0,0,0.5)',
+      panelSep: 'rgba(0,0,0,0.12)',      hudFg: 'rgba(0,0,0,0.78)',
+      thumb: '#000000', track: 'rgba(0,0,0,0.22)',
+      sceneBg: 0xffffff,
+    },
+    GREEN:  {
+      bg: '#050e07', fg: '0,255,65',
+      panelBg: 'rgba(5,16,8,0.97)',      panelFg: '#00ff41',
+      panelBorder: 'rgba(0,255,65,0.6)', panelMuted: 'rgba(0,255,65,0.45)',
+      panelSep: 'rgba(0,255,65,0.18)',   hudFg: 'rgba(0,255,65,0.75)',
+      thumb: '#00ff41', track: 'rgba(0,255,65,0.25)',
+      sceneBg: 0x050e07,
+    },
+    AMBER:  {
+      bg: '#0d0800', fg: '255,176,0',
+      panelBg: 'rgba(18,11,0,0.97)',     panelFg: '#ffb000',
+      panelBorder: 'rgba(255,176,0,0.6)',panelMuted: 'rgba(255,176,0,0.45)',
+      panelSep: 'rgba(255,176,0,0.18)',  hudFg: 'rgba(255,176,0,0.75)',
+      thumb: '#ffb000', track: 'rgba(255,176,0,0.25)',
+      sceneBg: 0x0d0800,
+    },
+    RED:    {
+      bg: '#0d0000', fg: '255,38,0',
+      panelBg: 'rgba(18,0,0,0.97)',      panelFg: '#ff2600',
+      panelBorder: 'rgba(255,38,0,0.6)', panelMuted: 'rgba(255,38,0,0.45)',
+      panelSep: 'rgba(255,38,0,0.18)',   hudFg: 'rgba(255,38,0,0.75)',
+      thumb: '#ff2600', track: 'rgba(255,38,0,0.25)',
+      sceneBg: 0x0d0000,
+    },
+    INVERT: {
+      bg: '#000000', fg: '255,255,255',
+      panelBg: 'rgba(18,18,18,0.97)',    panelFg: '#ffffff',
+      panelBorder: 'rgba(255,255,255,0.45)', panelMuted: 'rgba(255,255,255,0.4)',
+      panelSep: 'rgba(255,255,255,0.14)',    hudFg: 'rgba(255,255,255,0.78)',
+      thumb: '#ffffff', track: 'rgba(255,255,255,0.25)',
+      sceneBg: 0x000000,
+    },
+  };
+
+  // =====================================================
+  // THREE.JS SETUP
+  // =====================================================
+  const threeLayer = document.getElementById('three-layer');
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false,
+    powerPreference: 'high-performance',
+    preserveDrawingBuffer: true,  // required for ASCII sampling
+  });
+  renderer.setClearColor(0xffffff, 1);
+  threeLayer.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xffffff);
+
+  const camera3D = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera3D.position.set(0, 0.9, 5.8);
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.35);
+  scene.add(ambientLight);
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.55);
+  keyLight.position.set(2.8, 3.0, 4.0);
+  scene.add(keyLight);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.75);
+  fillLight.position.set(-2.0, 1.5, 2.8);
+  scene.add(fillLight);
+
+  let modelRoot  = null;
+  let modelMixer = null;
+  let idleBaseY  = 0;
+  let modelReady = false;
+
+  const state = {
+    objectProximity01: 0,
+    cursorX: -9999,
+    cursorY: -9999,
+  };
+
+  // ── model framing (from main.js) ──
+  function frameModel(obj) {
+    const box    = new THREE.Box3().setFromObject(obj);
+    const size   = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    obj.position.x -= center.x;
+    obj.position.y -= center.y;
+    obj.position.z -= center.z;
+    obj.scale.setScalar(3.55 / Math.max(size.y, 0.0001));
+    const box2    = new THREE.Box3().setFromObject(obj);
+    const center2 = box2.getCenter(new THREE.Vector3());
+    const size2   = box2.getSize(new THREE.Vector3());
+    obj.position.x -= center2.x;
+    obj.position.y -= center2.y;
+    obj.position.z -= center2.z;
+    obj.position.y = -size2.y * 0.18;
+    idleBaseY = obj.position.y;
+  }
+
+  // ── model load ──
+  async function loadModel() {
+    const loader = new GLTFLoader();
+    return new Promise((resolve, reject) => {
+      loader.load('./model.glb', (gltf) => {
+        modelRoot = gltf.scene;
+        frameModel(modelRoot);
+        modelRoot.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.castShadow   = false;
+            child.receiveShadow = false;
+            child.material.transparent = false;
+            child.material.opacity     = 1;
+            child.material.depthWrite  = true;
+          }
+        });
+        scene.add(modelRoot);
+        if (gltf.animations && gltf.animations.length) {
+          modelMixer = new THREE.AnimationMixer(modelRoot);
+          modelMixer.clipAction(gltf.animations[0]).play();
+        }
+        modelReady = true;
+        document.getElementById('status').textContent = 'SOURCE: OBJECT';
+        resolve();
+      }, undefined, reject);
+    });
+  }
+
+  // ── model animation (from main.js, intact) ──
+  function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+  function lerp(a, b, t)    { return a + (b - a) * t; }
+  function smoothstep(e0, e1, x) {
+    const t = clamp((x - e0) / (e1 - e0), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  function animateModel(delta, elapsed) {
+    if (!modelRoot) return;
+    if (modelMixer) modelMixer.update(delta);
+    const idleFloat  = Math.sin(elapsed * 0.9)  * 0.035;
+    const idleBreath = Math.sin(elapsed * 1.4)  * 0.018;
+    const idleYaw    = Math.sin(elapsed * 0.42) * 0.07;
+    const idlePitch  = Math.sin(elapsed * 0.95) * 0.012;
+    const mainCycle  = Math.sin(elapsed * 0.48 - 0.9) * 0.5 + 0.5;
+    const mainLean   = Math.pow(mainCycle, 3.6);
+    const microLean  = Math.pow(Math.sin(elapsed * 1.15 + 0.8) * 0.5 + 0.5, 2.0) * 0.08;
+    const lean = mainLean + microLean;
+    modelRoot.position.y  = idleBaseY + idleFloat + idleBreath + (-lean * 0.09);
+    modelRoot.position.z  = lean * 1.0;
+    modelRoot.rotation.y  = idleYaw + Math.sin(elapsed * 1.1) * 0.03 * mainLean;
+    modelRoot.rotation.x  = idlePitch + lean * 0.25;
+    const targetProx = smoothstep(0.05, 0.85, lean * 1.0);
+    state.objectProximity01 = lerp(state.objectProximity01, targetProx, 0.12);
+  }
+
+  // =====================================================
+  // CANVAS / GRAIN SETUP
+  // =====================================================
+  const asciiCanvas = document.getElementById('ascii');
+  const asciiCtx    = asciiCanvas.getContext('2d');
+  const grainCanvas = document.getElementById('grain');
+  const grainCtx    = grainCanvas.getContext('2d');
+
+  const smpCanvas = document.createElement('canvas');
+  const smpCtx    = smpCanvas.getContext('2d', { willReadFrequently: true });
+
+  function resizeAll() {
+    const W = window.innerWidth, H = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio, 1.5);
+    asciiCanvas.width  = Math.round(W * dpr);
+    asciiCanvas.height = Math.round(H * dpr);
+    grainCanvas.width  = Math.round(W * 0.75);
+    grainCanvas.height = Math.round(H * 0.75);
+    renderer.setSize(W, H, false);
+    renderer.domElement.style.width  = `${W}px`;
+    renderer.domElement.style.height = `${H}px`;
+    camera3D.aspect = W / H;
+    camera3D.updateProjectionMatrix();
+  }
+  resizeAll();
+  window.addEventListener('resize', resizeAll);
+
+  // cursor tracking (for ASCII displacement effect)
+  window.addEventListener('mousemove', e => { state.cursorX = e.clientX; state.cursorY = e.clientY; });
+  window.addEventListener('mouseleave', () => { state.cursorX = -9999; state.cursorY = -9999; });
+
+  function drawGrain() {
+    const GW = grainCanvas.width, GH = grainCanvas.height;
+    const img = grainCtx.createImageData(GW, GH);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = (Math.random() * 255) | 0;
+      d[i] = d[i+1] = d[i+2] = v; d[i+3] = 255;
+    }
+    grainCtx.putImageData(img, 0, 0);
+    grainCanvas.style.opacity = cfg.grain;
+  }
+  setInterval(drawGrain, 80);
+
+  // =====================================================
+  // ASCII RENDERER
+  // =====================================================
+  const FACE_SET     = " .`'\":,;i!-~^+=*xo#$%0B&WM@";
+  const SPECIAL_CHAR = "朱";
+
+  function luminance(r, g, b) { return (0.2126*r + 0.7152*g + 0.0722*b) / 255; }
+
+  function getChar(luma) {
+    const idx = Math.floor((1 - luma) * (FACE_SET.length - 1));
+    return FACE_SET[clamp(idx, 0, FACE_SET.length - 1)];
+  }
+
+  function computeEdge(gray, x, y, w, h) {
+    const x0 = clamp(x-1,0,w-1), x1 = clamp(x+1,0,w-1);
+    const y0 = clamp(y-1,0,h-1), y1 = clamp(y+1,0,h-1);
+    return Math.min(255,
+      Math.abs(gray[y*w+x1] - gray[y*w+x0]) +
+      Math.abs(gray[y1*w+x] - gray[y0*w+x])
+    );
+  }
+
+  function applyToneMap(luma) {
+    let v = luma * cfg.brightness;
+    v = (v - 0.5) * cfg.contrast + 0.5;
+    return clamp(Math.pow(clamp(v, 0, 1), cfg.gamma), 0, 1);
+  }
+
+  function drawAscii(timeSec, imageSource, proximity01) {
+    const w = asciiCanvas.width, h = asciiCanvas.height;
+    const theme = THEMES[cfg.colorMode];
+    asciiCtx.clearRect(0, 0, w, h);
+    if (!imageSource) return;
+
+    // proximity reduces column count (matches main.js behaviour)
+    const baseCols = cfg.cols;
+    const cols     = Math.max(24, Math.round(baseCols * (1 - proximity01 * 0.16)));
+    const cellW    = w / cols;
+    const cellH    = cellW * 1.18;
+    const lineH    = cellH * 0.84;
+    const rows     = Math.max(1, Math.floor(h / lineH));
+    const fontSize = Math.max(8, Math.floor(cellH * 0.60));
+
+    smpCanvas.width  = cols;
+    smpCanvas.height = rows;
+    smpCtx.clearRect(0, 0, cols, rows);
+    smpCtx.drawImage(imageSource, 0, 0, cols, rows);
+    const imgData = smpCtx.getImageData(0, 0, cols, rows);
+    const data    = imgData.data;
+    const total   = cols * rows;
+    const gray    = new Uint8Array(total);
+
+    for (let i = 0; i < total; i++) {
+      const idx = i * 4;
+      if (data[idx+3] < 10) { gray[i] = 255; continue; }
+      const nx = (i % cols)           / Math.max(cols - 1, 1);
+      const ny = Math.floor(i / cols)  / Math.max(rows - 1, 1);
+      let l = luminance(data[idx], data[idx+1], data[idx+2]);
+      l += (Math.random() - 0.5) * 0.005;
+      const dx = nx - 0.5, dy = ny - 0.5;
+      l -= smoothstep(0.38, 0.9, Math.sqrt(dx*dx + dy*dy)) * 0.025;
+      l = applyToneMap(l);
+      gray[i] = Math.round(clamp(l, 0, 1) * 255);
+    }
+
+    asciiCtx.textAlign    = 'center';
+    asciiCtx.textBaseline = 'middle';
+    asciiCtx.font         = `${fontSize}px "VT323", monospace`;
+
+    const scaleX     = w / window.innerWidth;
+    const scaleY     = h / window.innerHeight;
+    const cxPx       = state.cursorX * scaleX;
+    const cyPx       = state.cursorY * scaleY;
+    const CURSOR_RAD = 90 * scaleX;
+    const MAX_DISP   = 10 * scaleX;
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i    = y * cols + x;
+        const luma = gray[i] / 255;
+        if (luma > 0.985) continue;
+
+        const nx = x / Math.max(cols - 1, 1);
+        const ny = y / Math.max(rows - 1, 1);
+        const edge      = computeEdge(gray, x, y, cols, rows);
+        const edgeBoost = smoothstep(18, 40, edge);
+
+        const darkBoost  = smoothstep(0.72, 0.16, luma);
+        const flickK     = 0.5 + 0.5 * Math.sin(timeSec * 4.4 + nx * 17 + ny * 11);
+        let specialRate  = cfg.special + darkBoost * 0.02 + flickK * 0.006;
+        if (luma > 0.72 || luma < 0.05) specialRate *= 0.2;
+
+        let ch;
+        if (Math.random() < specialRate) {
+          ch = SPECIAL_CHAR;
+        } else if (edgeBoost > 0.45) {
+          ch = getChar(clamp(luma - 0.08 * edgeBoost, 0, 1));
+        } else {
+          ch = getChar(luma);
+        }
+
+        const px = x * cellW + cellW * 0.5;
+        const py = y * lineH  + lineH  * 0.5;
+
+        // cursor displacement
+        const ddx = px - cxPx, ddy = py - cyPx;
+        const dist = Math.sqrt(ddx*ddx + ddy*ddy);
+        let dispX = 0, dispY = 0;
+        if (dist < CURSOR_RAD && dist > 0.5) {
+          const strength = (1 - dist / CURSOR_RAD) * MAX_DISP;
+          dispX = (ddx / dist) * strength;
+          dispY = (ddy / dist) * strength;
+        }
+
+        if (ch === SPECIAL_CHAR) {
+          asciiCtx.fillStyle = `rgba(${theme.fg},0.90)`;
+        } else {
+          const a = clamp(0.42 + (1 - luma) * 0.34, 0.40, 0.86);
+          asciiCtx.fillStyle = `rgba(${theme.fg},${a.toFixed(2)})`;
+        }
+
+        asciiCtx.fillText(ch, px + dispX, py + dispY);
+      }
+    }
+
+    // scanlines
+    if (cfg.scanline > 0.001) {
+      asciiCtx.save();
+      asciiCtx.globalAlpha = cfg.scanline;
+      for (let sy = 0; sy < h; sy += 3) {
+        asciiCtx.fillStyle = sy % 6 === 0
+          ? `rgba(${theme.fg},0.12)` : `rgba(${theme.fg},0.04)`;
+        asciiCtx.fillRect(0, sy, w, 1);
+      }
+      asciiCtx.restore();
+    }
+
+    // flicker
+    const flickerV = cfg.flicker + Math.sin(timeSec * 2.3) * 0.004;
+    if (flickerV > 0.001) {
+      asciiCtx.save();
+      asciiCtx.fillStyle = `rgba(${theme.fg},${Math.max(0, flickerV).toFixed(4)})`;
+      asciiCtx.fillRect(0, 0, w, h);
+      asciiCtx.restore();
+    }
+
+    drawHud(theme.hudFg, timeSec, proximity01);
+  }
+
+  function drawHud(hudFg, timeSec, proximity01) {
+    const w   = asciiCanvas.width;
+    const dpr = asciiCanvas.width / window.innerWidth;
+    const mg  = Math.round(40 * dpr);
+    const fs  = Math.round(10.5 * dpr);
+    const lh  = fs * 1.55;
+    const now = new Date();
+    const p2  = n => String(n).padStart(2, '0');
+    const p3  = n => String(n).padStart(3, '0');
+    const date = `${now.getFullYear()}.${p2(now.getMonth()+1)}.${p2(now.getDate())}`;
+    const time = `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}.${p3(now.getMilliseconds())}`;
+    const filled = Math.round(proximity01 * 8);
+    const bar    = '█'.repeat(filled) + '░'.repeat(8 - filled);
+    const lines  = [
+      '◈ CTRL PANEL TEST',
+      `${date} / ${time}`,
+      `PROX [${bar}]`,
+    ];
+    asciiCtx.save();
+    asciiCtx.font = `${fs}px "VT323", monospace`;
+    asciiCtx.textAlign    = 'left';
+    asciiCtx.textBaseline = 'top';
+    asciiCtx.fillStyle    = hudFg;
+    let ly = mg;
+    for (const line of lines) { asciiCtx.fillText(line, mg, ly); ly += lh; }
+    asciiCtx.restore();
+  }
+
+  // =====================================================
+  // COLOR MODE
+  // =====================================================
+  function applyColorMode(mode) {
+    cfg.colorMode = mode;
+    const T = THEMES[mode];
+    document.body.style.background = T.bg;
+    scene.background = new THREE.Color(T.sceneBg);
+    renderer.setClearColor(T.sceneBg, 1);
+    const root = document.documentElement;
+    root.style.setProperty('--thumb-color',  T.thumb);
+    root.style.setProperty('--track-color',  T.track);
+    root.style.setProperty('--panel-bg',     T.panelBg);
+    root.style.setProperty('--panel-fg',     T.panelFg);
+    root.style.setProperty('--panel-border', T.panelBorder);
+    root.style.setProperty('--panel-muted',  T.panelMuted);
+    root.style.setProperty('--panel-sep',    T.panelSep);
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    grainCanvas.style.filter =
+      mode === 'GREEN'  ? 'hue-rotate(96deg) saturate(2.5)' :
+      mode === 'AMBER'  ? 'sepia(1) saturate(4) hue-rotate(5deg)' :
+      mode === 'RED'    ? 'hue-rotate(330deg) saturate(3)' :
+      mode === 'INVERT' ? 'invert(1)' : '';
+  }
+
+  // =====================================================
+  // SLIDER BINDING
+  // =====================================================
+  function bindSlider(slId, valId, key, fmt) {
+    const sl    = document.getElementById(slId);
+    const valEl = document.getElementById(valId);
+    sl.addEventListener('input', () => {
+      cfg[key] = parseFloat(sl.value);
+      valEl.textContent = fmt(cfg[key]);
+    });
+  }
+
+  bindSlider('sl-cols',    'val-cols',    'cols',       v => Math.round(v));
+  bindSlider('sl-special', 'val-special', 'special',    v => v.toFixed(3));
+  bindSlider('sl-contrast','val-contrast','contrast',   v => v.toFixed(2));
+  bindSlider('sl-gamma',   'val-gamma',   'gamma',      v => v.toFixed(2));
+  bindSlider('sl-bright',  'val-bright',  'brightness', v => v.toFixed(2));
+  bindSlider('sl-scan',    'val-scan',    'scanline',   v => v.toFixed(3));
+  bindSlider('sl-flicker', 'val-flicker', 'flicker',    v => v.toFixed(3));
+  bindSlider('sl-grain',   'val-grain',   'grain',      v => { grainCanvas.style.opacity = v; return v.toFixed(3); });
+
+  document.querySelectorAll('.color-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyColorMode(btn.dataset.mode));
+  });
+
+  const panel = document.getElementById('ctrl-panel');
+  document.getElementById('settingsBtn').addEventListener('click',  () => panel.classList.toggle('visible'));
+  document.getElementById('closePanelBtn').addEventListener('click',() => panel.classList.remove('visible'));
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    Object.assign(cfg, DEFAULTS);
+    const rows = [
+      ['sl-cols',    'val-cols',    'cols',       v => Math.round(v)],
+      ['sl-special', 'val-special', 'special',    v => v.toFixed(3)],
+      ['sl-contrast','val-contrast','contrast',   v => v.toFixed(2)],
+      ['sl-gamma',   'val-gamma',   'gamma',      v => v.toFixed(2)],
+      ['sl-bright',  'val-bright',  'brightness', v => v.toFixed(2)],
+      ['sl-scan',    'val-scan',    'scanline',   v => v.toFixed(3)],
+      ['sl-flicker', 'val-flicker', 'flicker',    v => v.toFixed(3)],
+      ['sl-grain',   'val-grain',   'grain',      v => v.toFixed(3)],
+    ];
+    rows.forEach(([slId, valId, key, fmt]) => {
+      document.getElementById(slId).value = DEFAULTS[key];
+      document.getElementById(valId).textContent = fmt(DEFAULTS[key]);
+    });
+    grainCanvas.style.opacity = DEFAULTS.grain;
+    applyColorMode(DEFAULTS.colorMode);
+  });
+
+  // =====================================================
+  // RENDER LOOP
+  // =====================================================
+  const clock = new THREE.Clock();
+
+  function loop() {
+    requestAnimationFrame(loop);
+    const delta   = clock.getDelta();
+    const elapsed = clock.getElapsedTime();
+    animateModel(delta, elapsed);
+    renderer.render(scene, camera3D);
+    if (modelReady) {
+      drawAscii(elapsed, renderer.domElement, state.objectProximity01);
+    }
+  }
+
+  // =====================================================
+  // INIT
+  // =====================================================
+  loadModel().catch(err => {
+    console.error('model load failed:', err);
+    document.getElementById('status').textContent = 'MODEL LOAD ERROR';
+  });
+
+  loop();
+  </script>
+</body>
+</html>
