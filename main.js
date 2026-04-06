@@ -74,10 +74,6 @@ const state = {
   // フレームスキップ用カウンタ
   asciiFrameCount: 0,
 
-  // カーソル位置（CSS px）
-  cursorX: -9999,
-  cursorY: -9999,
-
   // 近接アラート
   proxAlert: false,
 
@@ -737,23 +733,7 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
       const jitter = sourceMode === "camera" && state.glitchBurst > 0.001
         ? (Math.random() - 0.5) * 1.2 * state.glitchBurst : 0;
 
-      // カーソルずれ
-      const scaleX = w / window.innerWidth;
-      const scaleY = h / window.innerHeight;
-      const cxPx = state.cursorX * scaleX;
-      const cyPx = state.cursorY * scaleY;
-      const CURSOR_RADIUS = 90 * scaleX;
-      const MAX_DISP = 10 * scaleX;
-      const ddx = px - cxPx, ddy = py - cyPx;
-      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-      let dispX = 0, dispY = 0;
-      if (dist < CURSOR_RADIUS && dist > 0.5) {
-        const strength = (1 - dist / CURSOR_RADIUS) * MAX_DISP;
-        dispX = (ddx / dist) * strength;
-        dispY = (ddy / dist) * strength;
-      }
-
-      asciiCtx.fillText(ch, px + jitter + dispX, py + dispY);
+      asciiCtx.fillText(ch, px + jitter, py);
     }
   }
 
@@ -1077,25 +1057,6 @@ function resizeAll() {
 
   camera3D.position.set(0, w < 768 ? 1.0 : 0.9, w < 768 ? 6.2 : 5.8);
 }
-
-window.addEventListener("mousemove", (e) => {
-  state.cursorX = e.clientX;
-  state.cursorY = e.clientY;
-});
-window.addEventListener("mouseleave", () => {
-  state.cursorX = -9999;
-  state.cursorY = -9999;
-});
-window.addEventListener("touchmove", (e) => {
-  if (e.touches.length > 0) {
-    state.cursorX = e.touches[0].clientX;
-    state.cursorY = e.touches[0].clientY;
-  }
-}, { passive: true });
-window.addEventListener("touchend", () => {
-  state.cursorX = -9999;
-  state.cursorY = -9999;
-});
 
 window.addEventListener("resize", resizeAll);
 
