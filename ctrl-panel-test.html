@@ -282,7 +282,6 @@
       panelBorder: 'rgba(0,0,0,0.9)',    panelMuted: 'rgba(0,0,0,0.5)',
       panelSep: 'rgba(0,0,0,0.12)',      hudFg: 'rgba(0,0,0,0.78)',
       thumb: '#000000', track: 'rgba(0,0,0,0.22)',
-      sceneBg: 0xffffff,
     },
     GREEN:  {
       bg: '#050e07', fg: '0,255,65',
@@ -290,7 +289,6 @@
       panelBorder: 'rgba(0,255,65,0.6)', panelMuted: 'rgba(0,255,65,0.45)',
       panelSep: 'rgba(0,255,65,0.18)',   hudFg: 'rgba(0,255,65,0.75)',
       thumb: '#00ff41', track: 'rgba(0,255,65,0.25)',
-      sceneBg: 0x050e07,
     },
     AMBER:  {
       bg: '#0d0800', fg: '255,176,0',
@@ -298,7 +296,6 @@
       panelBorder: 'rgba(255,176,0,0.6)',panelMuted: 'rgba(255,176,0,0.45)',
       panelSep: 'rgba(255,176,0,0.18)',  hudFg: 'rgba(255,176,0,0.75)',
       thumb: '#ffb000', track: 'rgba(255,176,0,0.25)',
-      sceneBg: 0x0d0800,
     },
     RED:    {
       bg: '#0d0000', fg: '255,38,0',
@@ -306,7 +303,6 @@
       panelBorder: 'rgba(255,38,0,0.6)', panelMuted: 'rgba(255,38,0,0.45)',
       panelSep: 'rgba(255,38,0,0.18)',   hudFg: 'rgba(255,38,0,0.75)',
       thumb: '#ff2600', track: 'rgba(255,38,0,0.25)',
-      sceneBg: 0x0d0000,
     },
     INVERT: {
       bg: '#000000', fg: '255,255,255',
@@ -314,7 +310,6 @@
       panelBorder: 'rgba(255,255,255,0.45)', panelMuted: 'rgba(255,255,255,0.4)',
       panelSep: 'rgba(255,255,255,0.14)',    hudFg: 'rgba(255,255,255,0.78)',
       thumb: '#ffffff', track: 'rgba(255,255,255,0.25)',
-      sceneBg: 0x000000,
     },
   };
 
@@ -660,8 +655,8 @@
     cfg.colorMode = mode;
     const T = THEMES[mode];
     document.body.style.background = T.bg;
-    scene.background = new THREE.Color(T.sceneBg);
-    renderer.setClearColor(T.sceneBg, 1);
+    // Three.js scene always renders on white — ASCII sampling must read white bg
+    // Color theming is applied to ASCII text color and page background only
     const root = document.documentElement;
     root.style.setProperty('--thumb-color',  T.thumb);
     root.style.setProperty('--track-color',  T.track);
