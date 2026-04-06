@@ -210,7 +210,7 @@ function drawHudOnCanvas() {
   asciiCtx.font = `${fs}px "VT323", monospace`;
   asciiCtx.textAlign = "left";
   asciiCtx.textBaseline = "top";
-  asciiCtx.fillStyle = "rgba(0,0,0,0.78)";
+  asciiCtx.fillStyle = `rgba(${currentTheme.fg},0.78)`;
   for (const line of lines) {
     asciiCtx.fillText(line, lx, ly);
     ly += lh;
@@ -249,6 +249,65 @@ const pc = PERF_CONFIG[PERF];
 const FACE_SET = " .`'\":,;i!-~^+=*xo#$%0B&WM@";
 const FX_SET = " .:-=+*#%@";
 const SPECIAL_CHAR = "朱";
+
+// =====================================================
+// COLOR THEME
+// =====================================================
+const THEMES = {
+  MONO:   { bg: "#ffffff", fg: "0,0,0",       sceneBg: 0xffffff, grainFilter: "",
+            panelBg: "rgba(255,255,255,0.97)", panelFg: "#000000",
+            panelBorder: "rgba(0,0,0,0.9)",    panelMuted: "rgba(0,0,0,0.5)",
+            panelSep: "rgba(0,0,0,0.12)",      thumb: "#000000", track: "rgba(0,0,0,0.22)" },
+  GREEN:  { bg: "#050e07", fg: "0,255,65",    sceneBg: 0x050e07, grainFilter: "hue-rotate(96deg) saturate(2.5)",
+            panelBg: "rgba(5,16,8,0.97)",      panelFg: "#00ff41",
+            panelBorder: "rgba(0,255,65,0.6)", panelMuted: "rgba(0,255,65,0.45)",
+            panelSep: "rgba(0,255,65,0.18)",   thumb: "#00ff41", track: "rgba(0,255,65,0.25)" },
+  AMBER:  { bg: "#0d0800", fg: "255,176,0",   sceneBg: 0x0d0800, grainFilter: "sepia(1) saturate(4) hue-rotate(5deg)",
+            panelBg: "rgba(18,11,0,0.97)",     panelFg: "#ffb000",
+            panelBorder: "rgba(255,176,0,0.6)",panelMuted: "rgba(255,176,0,0.45)",
+            panelSep: "rgba(255,176,0,0.18)",  thumb: "#ffb000", track: "rgba(255,176,0,0.25)" },
+  RED:    { bg: "#0d0000", fg: "255,38,0",    sceneBg: 0x0d0000, grainFilter: "hue-rotate(330deg) saturate(3)",
+            panelBg: "rgba(18,0,0,0.97)",      panelFg: "#ff2600",
+            panelBorder: "rgba(255,38,0,0.6)", panelMuted: "rgba(255,38,0,0.45)",
+            panelSep: "rgba(255,38,0,0.18)",   thumb: "#ff2600", track: "rgba(255,38,0,0.25)" },
+  INVERT: { bg: "#000000", fg: "255,255,255", sceneBg: 0x000000, grainFilter: "invert(1)",
+            panelBg: "rgba(18,18,18,0.97)",    panelFg: "#ffffff",
+            panelBorder: "rgba(255,255,255,0.45)", panelMuted: "rgba(255,255,255,0.4)",
+            panelSep: "rgba(255,255,255,0.14)",    thumb: "#ffffff", track: "rgba(255,255,255,0.25)" },
+};
+
+let currentTheme = THEMES.MONO;
+
+function applyColorMode(mode) {
+  const T = THEMES[mode];
+  if (!T) return;
+  currentTheme = T;
+
+  document.body.style.background = T.bg;
+  // Three.js scene background stays white — ASCII sampling must read white bg.
+  // Color is applied via fg text color only for non-MONO modes.
+  // Exception: INVERT/dark modes set scene bg to match body for visual consistency.
+  scene.background = new THREE.Color(T.sceneBg);
+  renderer.setClearColor(T.sceneBg, 1);
+
+  const root = document.documentElement;
+  root.style.setProperty("--thumb-color",  T.thumb);
+  root.style.setProperty("--track-color",  T.track);
+  root.style.setProperty("--panel-bg",     T.panelBg);
+  root.style.setProperty("--panel-fg",     T.panelFg);
+  root.style.setProperty("--panel-border", T.panelBorder);
+  root.style.setProperty("--panel-muted",  T.panelMuted);
+  root.style.setProperty("--panel-sep",    T.panelSep);
+
+  // grain canvas tint
+  const grainEl = document.querySelector("canvas[style*='opacity:0.055']") ||
+                  (() => { const els = document.querySelectorAll("canvas"); for (const c of els) if (c !== asciiCanvas) return c; })();
+  if (grainEl) grainEl.style.filter = T.grainFilter;
+
+  document.querySelectorAll(".color-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+}
 
 // モバイルは列数を絞ってピクセル単価を下げる
 const MOBILE_SCALE = PERF === "low" ? 0.72 : PERF === "mid" ? 0.85 : 1.0;
@@ -721,13 +780,13 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
 
       if (ch === SPECIAL_CHAR) {
         asciiCtx.fillStyle = sourceMode === "camera"
-          ? `rgba(0,0,0,${clamp(0.72 + state.glitchBurst * 0.12 + proximity01 * 0.06, 0.70, 0.98)})`
-          : `rgba(0,0,0,${clamp(0.82 + proximity01 * 0.06, 0.82, 0.98)})`;
+          ? `rgba(${currentTheme.fg},${clamp(0.72 + state.glitchBurst * 0.12 + proximity01 * 0.06, 0.70, 0.98)})`
+          : `rgba(${currentTheme.fg},${clamp(0.82 + proximity01 * 0.06, 0.82, 0.98)})`;
       } else {
         const a = sourceMode === "camera"
           ? clamp(0.48 + (1 - luma) * 0.38 + proximity01 * 0.04, 0.46, 0.94)
           : clamp(0.42 + (1 - luma) * 0.34 + proximity01 * 0.04, 0.40, 0.86);
-        asciiCtx.fillStyle = `rgba(0,0,0,${a})`;
+        asciiCtx.fillStyle = `rgba(${currentTheme.fg},${a})`;
       }
 
       const jitter = sourceMode === "camera" && state.glitchBurst > 0.001
@@ -749,13 +808,13 @@ function drawMinimalFx(timeSec, sourceMode) {
   asciiCtx.save();
   asciiCtx.globalAlpha = scanAlpha + state.glitchBurst * 0.04;
   for (let y = 0; y < h; y += 3) {
-    asciiCtx.fillStyle = y % 6 === 0 ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.04)";
+    asciiCtx.fillStyle = y % 6 === 0 ? `rgba(${currentTheme.fg},0.12)` : `rgba(${currentTheme.fg},0.04)`;
     asciiCtx.fillRect(0, y, w, 1);
   }
   asciiCtx.restore();
   const flicker = (sourceMode === "camera" ? asciiConfig.cameraFlicker : asciiConfig.objectFlicker) + Math.sin(timeSec * 2.3) * 0.004;
   asciiCtx.save();
-  asciiCtx.fillStyle = `rgba(0,0,0,${Math.max(0, flicker)})`;
+  asciiCtx.fillStyle = `rgba(${currentTheme.fg},${Math.max(0, flicker)})`;
   asciiCtx.fillRect(0, 0, w, h);
   asciiCtx.restore();
 }
@@ -841,7 +900,7 @@ function drawCoordOverlay(timeSec, sourceMode) {
       const isHeader = line.includes("ACQUIRED") || line.includes("ALERT");
       asciiCtx.fillStyle = isHeader && flashOn
         ? `rgba(180,20,20,0.88)`
-        : `rgba(0,0,0,0.78)`;
+        : `rgba(${currentTheme.fg},0.78)`;
       asciiCtx.fillText(line, lx2, ly);
       ly += lh;
     }
@@ -851,7 +910,7 @@ function drawCoordOverlay(timeSec, sourceMode) {
       const isHeader = line.includes("ACQUIRED") || line.includes("ALERT");
       asciiCtx.fillStyle = isHeader && flashOn
         ? `rgba(180,20,20,0.88)`
-        : `rgba(0,0,0,0.78)`;
+        : `rgba(${currentTheme.fg},0.78)`;
       asciiCtx.fillText(line, lx, ly);
       ly += lh;
     }
@@ -1139,5 +1198,137 @@ async function init() {
   }
   renderLoop();
 }
+
+// =====================================================
+// SETTINGS PANEL
+// =====================================================
+(function initSettingsPanel() {
+  const panel      = document.getElementById("ctrl-panel");
+  const settingsBtn = document.getElementById("settingsBtn");
+  if (!panel || !settingsBtn) return;
+
+  // ── open / close ──
+  settingsBtn.addEventListener("click", () => panel.classList.toggle("visible"));
+  document.getElementById("closePanelBtn").addEventListener("click", () => panel.classList.remove("visible"));
+
+  // ── sync slider to current asciiConfig value ──
+  function syncSlider(slId, valId, value, fmt) {
+    const sl = document.getElementById(slId);
+    const vl = document.getElementById(valId);
+    if (!sl || !vl) return;
+    sl.value = value;
+    vl.textContent = fmt(value);
+  }
+
+  function syncAllSliders() {
+    const m = state.source === "camera";
+    syncSlider("sl-cols",     "val-cols",     m ? asciiConfig.cameraColumns    : asciiConfig.objectColumns,     v => Math.round(v));
+    syncSlider("sl-special",  "val-special",  m ? asciiConfig.specialBaseRateCamera : asciiConfig.specialBaseRateObject, v => v.toFixed(3));
+    syncSlider("sl-contrast", "val-contrast", asciiConfig.contrast,   v => v.toFixed(2));
+    syncSlider("sl-gamma",    "val-gamma",    asciiConfig.gamma,      v => v.toFixed(2));
+    syncSlider("sl-bright",   "val-bright",   asciiConfig.brightness, v => v.toFixed(2));
+    syncSlider("sl-scan",     "val-scan",     m ? asciiConfig.cameraScanlineAlpha : asciiConfig.objectScanlineAlpha, v => v.toFixed(3));
+    syncSlider("sl-flicker",  "val-flicker",  m ? asciiConfig.cameraFlicker       : asciiConfig.objectFlicker,       v => v.toFixed(3));
+  }
+
+  // パネルを開くたびに現在のモードの値を反映
+  settingsBtn.addEventListener("click", () => {
+    if (panel.classList.contains("visible")) syncAllSliders();
+  });
+
+  // ── grain canvas reference ──
+  let grainCanvas = null;
+  // grain canvas はiife内で生成されdocument.bodyに追加される。init後に取得。
+  function getGrainCanvas() {
+    if (grainCanvas) return grainCanvas;
+    const all = document.querySelectorAll("canvas");
+    for (const c of all) {
+      if (c !== asciiCanvas && c !== document.getElementById("ascii")) {
+        grainCanvas = c; return c;
+      }
+    }
+    return null;
+  }
+
+  syncSlider("sl-grain", "val-grain", 0.055, v => v.toFixed(3));
+
+  // ── slider bindings ──
+  function bind(slId, valId, fmt, onChange) {
+    const sl = document.getElementById(slId);
+    const vl = document.getElementById(valId);
+    if (!sl || !vl) return;
+    sl.addEventListener("input", () => {
+      const v = parseFloat(sl.value);
+      vl.textContent = fmt(v);
+      onChange(v);
+    });
+  }
+
+  bind("sl-cols", "val-cols", v => Math.round(v), v => {
+    if (state.source === "camera") {
+      asciiConfig.cameraColumns       = Math.round(v);
+      asciiConfig.cameraColumnsMobile = Math.round(v * 0.47);
+    } else {
+      asciiConfig.objectColumns       = Math.round(v);
+      asciiConfig.objectColumnsMobile = Math.round(v * 0.52);
+    }
+  });
+
+  bind("sl-special", "val-special", v => v.toFixed(3), v => {
+    if (state.source === "camera") asciiConfig.specialBaseRateCamera = v;
+    else                           asciiConfig.specialBaseRateObject = v;
+  });
+
+  bind("sl-contrast", "val-contrast", v => v.toFixed(2), v => { asciiConfig.contrast   = v; });
+  bind("sl-gamma",    "val-gamma",    v => v.toFixed(2), v => { asciiConfig.gamma      = v; });
+  bind("sl-bright",   "val-bright",   v => v.toFixed(2), v => { asciiConfig.brightness = v; });
+
+  bind("sl-scan", "val-scan", v => v.toFixed(3), v => {
+    if (state.source === "camera") asciiConfig.cameraScanlineAlpha = v;
+    else                           asciiConfig.objectScanlineAlpha = v;
+  });
+
+  bind("sl-flicker", "val-flicker", v => v.toFixed(3), v => {
+    if (state.source === "camera") asciiConfig.cameraFlicker = v;
+    else                           asciiConfig.objectFlicker  = v;
+  });
+
+  bind("sl-grain", "val-grain", v => v.toFixed(3), v => {
+    const gc = getGrainCanvas();
+    if (gc) gc.style.opacity = v;
+  });
+
+  // ── color mode ──
+  document.querySelectorAll(".color-btn").forEach(btn => {
+    btn.addEventListener("click", () => applyColorMode(btn.dataset.mode));
+  });
+
+  // ── reset ──
+  const DEFAULTS_OBJ = {
+    objectColumns:        asciiConfig.objectColumns,
+    objectColumnsMobile:  asciiConfig.objectColumnsMobile,
+    cameraColumns:        asciiConfig.cameraColumns,
+    cameraColumnsMobile:  asciiConfig.cameraColumnsMobile,
+    specialBaseRateObject: asciiConfig.specialBaseRateObject,
+    specialBaseRateCamera: asciiConfig.specialBaseRateCamera,
+    contrast:    asciiConfig.contrast,
+    gamma:       asciiConfig.gamma,
+    brightness:  asciiConfig.brightness,
+    objectScanlineAlpha: asciiConfig.objectScanlineAlpha,
+    cameraScanlineAlpha: asciiConfig.cameraScanlineAlpha,
+    objectFlicker: asciiConfig.objectFlicker,
+    cameraFlicker: asciiConfig.cameraFlicker,
+  };
+  const GRAIN_DEFAULT = 0.055;
+
+  document.getElementById("resetSettingsBtn").addEventListener("click", () => {
+    Object.assign(asciiConfig, DEFAULTS_OBJ);
+    const gc = getGrainCanvas();
+    if (gc) gc.style.opacity = GRAIN_DEFAULT;
+    syncAllSliders();
+    syncSlider("sl-grain", "val-grain", GRAIN_DEFAULT, v => v.toFixed(3));
+    applyColorMode("MONO");
+  });
+})();
 
 init();

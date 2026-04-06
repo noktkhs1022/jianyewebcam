@@ -119,6 +119,122 @@
       cursor: crosshair;
     }
 
+    /* ── CONTROL PANEL ── */
+    :root {
+      --thumb-color: #000000;
+      --track-color: rgba(0,0,0,0.22);
+      --panel-bg: rgba(255,255,255,0.97);
+      --panel-fg: #000000;
+      --panel-border: rgba(0,0,0,0.9);
+      --panel-muted: rgba(0,0,0,0.5);
+      --panel-sep: rgba(0,0,0,0.12);
+    }
+
+    #ctrl-panel {
+      position: fixed;
+      left: 40px;
+      bottom: 65px;
+      z-index: 25;
+      width: 214px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      font-family: "VT323", monospace;
+      font-size: 10px;
+      line-height: 1.3;
+      letter-spacing: 0.02em;
+      color: var(--panel-fg);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(5px);
+      transition: opacity 0.18s ease, transform 0.18s ease,
+                  background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    #ctrl-panel.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    #ctrl-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px 4px;
+      border-bottom: 1px solid var(--panel-sep);
+    }
+    #ctrl-title { font-size: 10px; letter-spacing: 0.06em; opacity: 0.85; }
+    #ctrl-actions { display: flex; gap: 4px; }
+
+    .panel-btn {
+      appearance: none;
+      border: 1px solid var(--panel-border);
+      background: transparent;
+      color: var(--panel-fg);
+      font-family: "VT323", monospace;
+      font-size: 9px; line-height: 1;
+      padding: 1px 5px; cursor: pointer;
+      border-radius: 0; letter-spacing: 0.02em;
+      transition: background 0.1s, color 0.1s;
+    }
+    .panel-btn:hover { background: var(--panel-fg); color: var(--panel-bg); }
+
+    #ctrl-body {
+      padding: 7px 9px 9px;
+      display: flex; flex-direction: column; gap: 0;
+      max-height: calc(100vh - 140px);
+      overflow-y: auto; scrollbar-width: none;
+    }
+    #ctrl-body::-webkit-scrollbar { display: none; }
+
+    .ctrl-sep { border: none; border-top: 1px solid var(--panel-sep); margin: 5px 0; }
+
+    .ctrl-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 5px; }
+    .ctrl-row:last-child { margin-bottom: 0; }
+
+    .ctrl-label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 9px; letter-spacing: 0.05em; color: var(--panel-muted);
+    }
+    .ctrl-val { color: var(--panel-fg); min-width: 38px; text-align: right; font-size: 9px; }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 1px;
+      background: var(--track-color);
+      outline: none; cursor: pointer; margin: 3px 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 7px; height: 7px;
+      background: var(--thumb-color);
+      border-radius: 0; cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 7px; height: 7px;
+      background: var(--thumb-color);
+      border-radius: 0; border: none; cursor: pointer;
+    }
+
+    .color-grid { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+    .color-btn {
+      appearance: none;
+      border: 1px solid var(--panel-border);
+      background: transparent; color: var(--panel-fg);
+      font-family: "VT323", monospace;
+      font-size: 9px; padding: 1px 5px;
+      cursor: pointer; border-radius: 0; line-height: 1.3;
+      letter-spacing: 0.03em;
+      transition: background 0.1s, color 0.1s, border-color 0.2s;
+    }
+    .color-btn.active { background: var(--panel-fg); color: var(--panel-bg); }
+
+    @media (orientation: portrait) and (max-width: 600px) {
+      #ctrl-panel {
+        left: max(20px, env(safe-area-inset-left, 20px));
+        bottom: 60px;
+        width: calc(100vw - 40px);
+      }
+    }
+
     #boot-screen {
       position: fixed;
       inset: 0;
@@ -258,8 +374,79 @@
     </div>
   </div>
 
+  <!-- CONTROL PANEL -->
+  <div id="ctrl-panel">
+    <div id="ctrl-header">
+      <span id="ctrl-title">◈ SETTINGS</span>
+      <div id="ctrl-actions">
+        <button class="panel-btn" id="resetSettingsBtn">RESET</button>
+        <button class="panel-btn" id="closePanelBtn">×</button>
+      </div>
+    </div>
+    <div id="ctrl-body">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">RESOLUTION <span class="ctrl-val" id="val-cols">--</span></div>
+        <input type="range" id="sl-cols" min="30" max="200" step="2" value="120">
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">SPECIAL 朱 <span class="ctrl-val" id="val-special">--</span></div>
+        <input type="range" id="sl-special" min="0" max="0.12" step="0.001" value="0.008">
+      </div>
+
+      <hr class="ctrl-sep">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">CONTRAST <span class="ctrl-val" id="val-contrast">--</span></div>
+        <input type="range" id="sl-contrast" min="0.5" max="3.5" step="0.02" value="1.56">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">GAMMA <span class="ctrl-val" id="val-gamma">--</span></div>
+        <input type="range" id="sl-gamma" min="0.3" max="1.8" step="0.01" value="0.82">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">BRIGHTNESS <span class="ctrl-val" id="val-bright">--</span></div>
+        <input type="range" id="sl-bright" min="0.4" max="2.0" step="0.02" value="1.0">
+      </div>
+
+      <hr class="ctrl-sep">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">SCANLINE <span class="ctrl-val" id="val-scan">--</span></div>
+        <input type="range" id="sl-scan" min="0" max="0.22" step="0.002" value="0.042">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">FLICKER <span class="ctrl-val" id="val-flicker">--</span></div>
+        <input type="range" id="sl-flicker" min="0" max="0.06" step="0.001" value="0.010">
+      </div>
+
+      <hr class="ctrl-sep">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">FILM GRAIN <span class="ctrl-val" id="val-grain">--</span></div>
+        <input type="range" id="sl-grain" min="0" max="0.25" step="0.005" value="0.055">
+      </div>
+
+      <hr class="ctrl-sep">
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">COLOR MODE</div>
+        <div class="color-grid">
+          <button class="color-btn active" data-mode="MONO">MONO</button>
+          <button class="color-btn" data-mode="GREEN">GREEN</button>
+          <button class="color-btn" data-mode="AMBER">AMBER</button>
+          <button class="color-btn" data-mode="RED">RED</button>
+          <button class="color-btn" data-mode="INVERT">INVERT</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <div id="ui">
     <button id="enableCameraBtn" class="ui-btn">CAMERA</button>
+    <button id="settingsBtn" class="ui-btn">SETTINGS</button>
     <button id="captureBtn" class="ui-btn">CAPTURE</button>
     <button id="closeBtn" class="ui-btn" onclick="if(window.opener){window.close();}else{window.history.back();}">
       <span class="pc-label">BACK TO TOP</span><span class="mobile-label">×</span>
