@@ -68,15 +68,15 @@
       left: 40px;
       bottom: 72px;
       z-index: 30;
-      max-width: 360px;
+      max-width: 260px;
       font-family: "VT323", monospace;
-      font-size: 10px;
-      line-height: 1.75;
+      font-size: 8px;
+      line-height: 1.55;
       letter-spacing: 0.02em;
       color: black;
       border: 1px solid rgba(0, 0, 0, 0.9);
       background: rgba(255, 255, 255, 0.92);
-      padding: 8px 10px 6px;
+      padding: 5px 7px 4px;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.35s ease;
@@ -86,13 +86,13 @@
       pointer-events: auto;
     }
     #privacy-notice p {
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     #privacy-notice-footer {
       display: flex;
       align-items: center;
-      gap: 5px;
-      margin-top: 6px;
+      gap: 4px;
+      margin-top: 4px;
     }
     #privacy-notice a.ui-btn {
       text-decoration: none;
@@ -250,10 +250,8 @@
   <canvas id="ascii"></canvas>
 
   <div id="privacy-notice">
-    <p>YOUR CAMERA IS USED FOR IN-BROWSER VISUAL EFFECTS ONLY.<br>
-    NO VIDEO OR IMAGES ARE RECORDED, STORED, OR TRANSMITTED.</p>
-    <p>カメラ映像はブラウザ内のビジュアルエフェクトのみに使用されます。<br>
-    録画・保存・外部への送信は一切行われません。</p>
+    <p>CAMERA: IN-BROWSER ONLY. NO RECORDING OR TRANSMISSION.<br>
+    カメラ映像はブラウザ内処理のみ。録画・送信なし。</p>
     <div id="privacy-notice-footer">
       <a href="https://www.jianye.online/store-policy-1" target="_blank" class="ui-btn">PRIVACY POLICY →</a>
       <button class="ui-btn" id="privacy-close">×</button>
