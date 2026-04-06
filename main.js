@@ -997,12 +997,12 @@ function captureCanvas() {
   }
   state.captureMode = false;
 
-  // 白背景に合成
+  // テーマ背景色に合成
   const offscreen = document.createElement("canvas");
   offscreen.width = asciiCanvas.width;
   offscreen.height = asciiCanvas.height;
   const ctx = offscreen.getContext("2d");
-  ctx.fillStyle = "white";
+  ctx.fillStyle = currentTheme.bg;
   ctx.fillRect(0, 0, offscreen.width, offscreen.height);
   ctx.drawImage(asciiCanvas, 0, 0);
 
@@ -1205,8 +1205,20 @@ async function init() {
   if (!panel || !settingsBtn) return;
 
   // ── open / close ──
-  settingsBtn.addEventListener("click", () => panel.classList.toggle("visible"));
+  settingsBtn.addEventListener("click", (e) => { e.stopPropagation(); panel.classList.toggle("visible"); });
   document.getElementById("closePanelBtn").addEventListener("click", () => panel.classList.remove("visible"));
+
+  // パネル外クリック/タッチで閉じる
+  document.addEventListener("click", (e) => {
+    if (panel.classList.contains("visible") && !panel.contains(e.target) && e.target !== settingsBtn) {
+      panel.classList.remove("visible");
+    }
+  });
+  document.addEventListener("touchend", (e) => {
+    if (panel.classList.contains("visible") && !panel.contains(e.target) && e.target !== settingsBtn) {
+      panel.classList.remove("visible");
+    }
+  }, { passive: true });
 
   // ── sync slider to current asciiConfig value ──
   function syncSlider(slId, valId, value, fmt) {

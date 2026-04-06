@@ -65,7 +65,7 @@
 
     #privacy-notice {
       position: fixed;
-      left: 40px;
+      right: 40px;
       bottom: 72px;
       z-index: 22;
       max-width: 260px;
@@ -100,7 +100,7 @@
     }
     @media (orientation: portrait) and (max-width: 600px) {
       #privacy-notice {
-        left: max(20px, env(safe-area-inset-left, 20px));
+        right: max(20px, env(safe-area-inset-right, 20px));
         bottom: 72px;
         max-width: calc(100vw - 40px);
       }
@@ -366,8 +366,10 @@
   <canvas id="ascii"></canvas>
 
   <div id="privacy-notice">
-    <p>CAMERA: IN-BROWSER ONLY. NO RECORDING OR TRANSMISSION.<br>
-    カメラ映像はブラウザ内処理のみ。録画・送信なし。</p>
+    <p>YOUR CAMERA IS USED FOR IN-BROWSER VISUAL EFFECTS ONLY.<br>
+    NO VIDEO OR IMAGES ARE RECORDED, STORED, OR TRANSMITTED.</p>
+    <p>カメラ映像はブラウザ内のビジュアルエフェクトのみに使用されます。<br>
+    録画・保存・外部への送信は一切行われません。</p>
     <div id="privacy-notice-footer">
       <a href="https://www.jianye.online/store-policy-1" target="_blank" class="ui-btn">PRIVACY POLICY →</a>
       <button class="ui-btn" id="privacy-close">×</button>
@@ -472,7 +474,7 @@
 
       function showNotice() {
         notice.classList.add('visible');
-        dismissTimer = setTimeout(hideNotice, 10000); // 10秒で自動消去
+        dismissTimer = setTimeout(hideNotice, 5000); // 5秒で自動消去
       }
       function hideNotice() {
         clearTimeout(dismissTimer);
