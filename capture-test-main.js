@@ -735,11 +735,7 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   const fontSizeScale = asciiConfig.baseFontSizeScale * (1 + proximity01 * fontGrow);
   const lineHeightScale = asciiConfig.lineHeightBaseScale * (1 + proximity01 * lineGrow);
   const lineHeight = cellH * lineHeightScale;
-  // モバイルではcanvasがscreen.height分あるが、ASCIIはビューポート高さ分のみ描画
-  // → Three.jsのレンダリングアスペクト比を維持する
-  const dpr = w / window.innerWidth;
-  const viewportH = IS_MOBILE ? Math.floor(window.innerHeight * dpr) : h;
-  const rows = Math.max(1, Math.floor(viewportH / lineHeight));
+  const rows = Math.max(1, Math.floor(h / lineHeight));
 
   // ASCII専用sampleCanvasを使用 → MP用との競合解消
   sampleCanvasAscii.width = cols;
@@ -1276,21 +1272,21 @@ enableCameraBtn.addEventListener("click", async () => {
 function resizeAll() {
   const w = window.innerWidth;
   const h = window.innerHeight;
-  // モバイルはscreen.heightで物理解像度全体を使用
-  // → ビューポート外（ナビバー下）も描画・書き出しに含まれる
+  // モバイル: canvas・Three.jsともに物理解像度フル(screen.height)ベース
+  // → ASCII描画がcanvas全体を埋める、書き出しはフル解像度
   const canvasH = IS_MOBILE ? screen.height : h;
   const dpr = Math.min(window.devicePixelRatio, pc.pixelRatio);
 
   renderer.setPixelRatio(pc.pixelRatio);
-  renderer.setSize(Math.round(w * THREE_SCALE), Math.round(h * THREE_SCALE), false);
+  // Three.jsもcanvasHベースでレンダリング → ASCII全体に正しくサンプリングされる
+  renderer.setSize(Math.round(w * THREE_SCALE), Math.round(canvasH * THREE_SCALE), false);
   renderer.domElement.style.width  = `${w}px`;
-  renderer.domElement.style.height = `${h}px`;
+  renderer.domElement.style.height = `${canvasH}px`;
 
-  // Three.jsのアスペクト比はビューポート基準のまま
-  camera3D.aspect = w / h;
+  // アスペクト比もcanvasH（物理解像度）ベース
+  camera3D.aspect = w / canvasH;
   camera3D.updateProjectionMatrix();
 
-  // canvasバッファ: モバイルは物理解像度フル、PCはビューポート×dpr
   asciiCanvas.width  = Math.floor(w       * dpr);
   asciiCanvas.height = Math.floor(canvasH * dpr);
   asciiCanvas.style.width  = `${w}px`;
