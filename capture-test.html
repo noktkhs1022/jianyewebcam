@@ -488,7 +488,7 @@
       const closeBtn = document.getElementById('privacy-close');
       const camBtn   = document.getElementById('enableCameraBtn');
       let dismissTimer = null;
-      function showNotice() { notice.classList.add('visible'); dismissTimer = setTimeout(hideNotice, 10000); }
+      function showNotice() { notice.classList.add('visible'); dismissTimer = setTimeout(hideNotice, 4000); }
       function hideNotice() { clearTimeout(dismissTimer); notice.classList.remove('visible'); }
       closeBtn.addEventListener('click', hideNotice);
       let shown = false;
