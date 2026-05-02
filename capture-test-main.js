@@ -40,6 +40,15 @@ const _logoReady = new Promise(resolve => {
   _logoImg.src = "./jianye-logo-250250.png";
 });
 
+// 録画用テーマロゴ（テーマ切替時に更新）
+let _themeLogoImg = null;
+function _loadThemeLogo(src) {
+  const img = new Image();
+  img.onload  = () => { _themeLogoImg = img; };
+  img.onerror = () => {};
+  img.src = src;
+}
+
 const video = document.getElementById("video");
 const enableCameraBtn = document.getElementById("enableCameraBtn");
 const captureBtn = document.getElementById("captureBtn");
@@ -285,11 +294,13 @@ const THEMES = {
 };
 
 let currentTheme = THEMES.MONO;
+_loadThemeLogo(THEMES.MONO.logo);
 
 function applyColorMode(mode) {
   const T = THEMES[mode];
   if (!T) return;
   currentTheme = T;
+  _loadThemeLogo(T.logo);
 
   document.body.style.background = T.bg;
   const logoEl = document.querySelector("#logo-br img");
@@ -1331,6 +1342,17 @@ function renderLoop() {
     _recordCtx.fillStyle = currentTheme.bg;
     _recordCtx.fillRect(0, 0, _recordCanvas.width, _recordCanvas.height);
     _recordCtx.drawImage(asciiCanvas, 0, 0);
+    if (_themeLogoImg) {
+      const scale     = asciiCanvas.width / window.innerWidth;
+      const portrait  = window.innerHeight > window.innerWidth;
+      const logoSize  = Math.round((IS_MOBILE ? 36 : 50) * scale);
+      const margin    = Math.round((portrait ? 20 : 40) * scale);
+      const viewportH = Math.floor(window.innerHeight * scale);
+      _recordCtx.drawImage(_themeLogoImg,
+        _recordCanvas.width - margin - logoSize,
+        viewportH           - margin - logoSize,
+        logoSize, logoSize);
+    }
   }
 
   updateStatus();
