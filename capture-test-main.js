@@ -1027,6 +1027,10 @@ let _recMimeType    = "";
 let _isRecording    = false;
 const REC_MAX_SEC   = 15;
 
+// 録画用合成キャンバス（background + asciiCanvas を合成してストリームを取得）
+const _recordCanvas = document.createElement("canvas");
+const _recordCtx    = _recordCanvas.getContext("2d");
+
 function detectMimeType() {
   const candidates = [
     "video/mp4;codecs=h264", "video/mp4;codecs=avc1",
@@ -1052,7 +1056,10 @@ function onRecBtnClick() {
 function startRecording() {
   _isRecording = true; _recordedChunks = [];
   _recMimeType = detectMimeType(); _recStartTime = Date.now();
-  const stream = asciiCanvas.captureStream(30);
+  // 合成キャンバスをasciiCanvasに合わせてリサイズしてからストリーム取得
+  _recordCanvas.width  = asciiCanvas.width;
+  _recordCanvas.height = asciiCanvas.height;
+  const stream = _recordCanvas.captureStream(30);
   _mediaRecorder = new MediaRecorder(stream, { mimeType: _recMimeType, videoBitsPerSecond: 16000000 });
   _mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _recordedChunks.push(e.data); };
   _mediaRecorder.onstop = onRecordingStop;
@@ -1072,17 +1079,12 @@ function stopRecording() {
 }
 
 function captureThumbForVideo() {
-  // Three.jsとASCIIを明示的に1フレーム描画してからキャプチャ（タイミング依存を排除）
-  renderer.render(scene, camera3D);
-  const elapsed = clock.getElapsedTime();
-  if (state.source === "object") {
-    drawAsciiFromSource({ imageSource: renderer.domElement, sourceMode: "object",
-      faceBoxNorm: null, proximity01: state.objectProximity01, timeSec: elapsed });
-  } else {
-    drawAsciiFromSource({ imageSource: personCanvas, sourceMode: "camera",
-      faceBoxNorm: state.faceBoxNorm, proximity01: state.zoom01, timeSec: elapsed });
-  }
-  return asciiCanvas.toDataURL("image/jpeg", 0.85);
+  // 録画と同じ合成キャンバスから取得（背景+ASCII合成済みで確実に可視）
+  const thumb = document.createElement("canvas");
+  thumb.width  = _recordCanvas.width;
+  thumb.height = _recordCanvas.height;
+  thumb.getContext("2d").drawImage(_recordCanvas, 0, 0);
+  return thumb.toDataURL("image/jpeg", 0.85);
 }
 
 function onRecordingStop() {
@@ -1295,6 +1297,17 @@ function renderLoop() {
       proximity01: state.zoom01,
       timeSec: elapsed,
     });
+  }
+
+  // 録画中: 背景色 + asciiCanvas を合成キャンバスに転写
+  if (_isRecording) {
+    if (_recordCanvas.width !== asciiCanvas.width || _recordCanvas.height !== asciiCanvas.height) {
+      _recordCanvas.width  = asciiCanvas.width;
+      _recordCanvas.height = asciiCanvas.height;
+    }
+    _recordCtx.fillStyle = currentTheme.bg;
+    _recordCtx.fillRect(0, 0, _recordCanvas.width, _recordCanvas.height);
+    _recordCtx.drawImage(asciiCanvas, 0, 0);
   }
 
   updateStatus();
