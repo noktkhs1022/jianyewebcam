@@ -196,7 +196,7 @@ function drawHudOnCanvas() {
   const w = asciiCanvas.width, h = asciiCanvas.height;
   const dpr = asciiCanvas.width / window.innerWidth;
   const isPortrait = window.innerHeight > window.innerWidth;
-  const margin = Math.round((isPortrait ? 20 : 40) * dpr);
+  const margin = Math.round(40 * dpr);
   const fs = Math.round((isPortrait ? 8 : 10.5) * dpr);
   const lh = fs * 1.55;
   const lx = margin;
@@ -833,7 +833,7 @@ function drawCoordOverlay(timeSec, sourceMode) {
   const h = asciiCanvas.height;
   const dpr = asciiCanvas.width / window.innerWidth;
   const isPortrait = window.innerHeight > window.innerWidth;
-  const margin = Math.round((isPortrait ? 20 : 40) * dpr);
+  const margin = Math.round(40 * dpr);
   const fs = Math.round((isPortrait ? 8 : 10.5) * dpr);
   const lh = fs * 1.55;
   const lx = margin;
