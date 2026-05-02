@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>CAPTURE TEST</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+
+  <style>
+    html, body {
+      margin: 0; padding: 0; overflow: hidden;
+      width: 100%; height: 100%;
+      background: white;
+      font-family: "VT323", monospace;
+    }
+
+    #ascii {
+      position: fixed; inset: 0; display: block;
+      width: 100vw; height: 100vh;
+      z-index: 10; pointer-events: none;
+    }
+
+    #ui {
+      position: fixed; left: 40px; bottom: 40px;
+      z-index: 20; display: flex; gap: 5px;
+      align-items: center; flex-wrap: wrap;
+      pointer-events: auto;
+    }
+
+    .ui-btn {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.9);
+      background: rgba(255,255,255,0.92);
+      color: black;
+      font-family: "VT323", monospace;
+      font-size: 10px; line-height: 1;
+      padding: 2px 4px; cursor: pointer;
+      border-radius: 0; box-shadow: none;
+      letter-spacing: 0.02em; pointer-events: auto;
+    }
+    .ui-btn:disabled { opacity: 0.35; cursor: default; }
+    .mobile-label { display: none; }
+
+    #status {
+      font-size: 10px; line-height: 1; color: black;
+      letter-spacing: 0.02em; padding-top: 1px; user-select: none;
+    }
+
+    body { cursor: crosshair; }
+
+    /* ── CONTROL PANEL ── */
+    :root {
+      --thumb-color: #000000;
+      --track-color: rgba(0,0,0,0.22);
+      --panel-bg: rgba(255,255,255,0.97);
+      --panel-fg: #000000;
+      --panel-border: rgba(0,0,0,0.9);
+      --panel-muted: rgba(0,0,0,0.5);
+      --panel-sep: rgba(0,0,0,0.12);
+    }
+
+    #ctrl-panel {
+      position: fixed; left: 40px; bottom: 65px;
+      z-index: 25; width: 214px;
+      background: var(--panel-bg); border: 1px solid var(--panel-border);
+      font-family: "VT323", monospace; font-size: 10px;
+      line-height: 1.3; letter-spacing: 0.02em; color: var(--panel-fg);
+      opacity: 0; pointer-events: none; transform: translateY(5px);
+      transition: opacity 0.18s ease, transform 0.18s ease,
+                  background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    #ctrl-panel.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    #ctrl-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 8px 4px; border-bottom: 1px solid var(--panel-sep);
+    }
+    #ctrl-title { font-size: 10px; letter-spacing: 0.06em; opacity: 0.85; }
+    #ctrl-actions { display: flex; gap: 4px; }
+    .panel-btn {
+      appearance: none; border: 1px solid var(--panel-border);
+      background: transparent; color: var(--panel-fg);
+      font-family: "VT323", monospace; font-size: 9px; line-height: 1;
+      padding: 1px 5px; cursor: pointer; border-radius: 0; letter-spacing: 0.02em;
+      transition: background 0.1s, color 0.1s;
+    }
+    .panel-btn:hover { background: var(--panel-fg); color: var(--panel-bg); }
+    #ctrl-body {
+      padding: 7px 9px 9px; display: flex; flex-direction: column; gap: 0;
+      max-height: calc(100vh - 140px); overflow-y: auto; scrollbar-width: none;
+    }
+    #ctrl-body::-webkit-scrollbar { display: none; }
+    .ctrl-sep { border: none; border-top: 1px solid var(--panel-sep); margin: 5px 0; }
+    .ctrl-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 5px; }
+    .ctrl-row:last-child { margin-bottom: 0; }
+    .ctrl-label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 9px; letter-spacing: 0.05em; color: var(--panel-muted);
+    }
+    .ctrl-val { color: var(--panel-fg); min-width: 38px; text-align: right; font-size: 9px; }
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 1px; background: var(--track-color);
+      outline: none; cursor: pointer; margin: 3px 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 7px; height: 7px;
+      background: var(--thumb-color); border-radius: 0; cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 7px; height: 7px; background: var(--thumb-color);
+      border-radius: 0; border: none; cursor: pointer;
+    }
+    .color-grid { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+    .color-btn {
+      appearance: none; border: 1px solid var(--panel-border);
+      background: transparent; color: var(--panel-fg);
+      font-family: "VT323", monospace; font-size: 9px; padding: 1px 5px;
+      cursor: pointer; border-radius: 0; line-height: 1.3; letter-spacing: 0.03em;
+      transition: background 0.1s, color 0.1s, border-color 0.2s;
+    }
+    .color-btn.active { background: var(--panel-fg); color: var(--panel-bg); }
+
+    /* ── PRIVACY NOTICE ── */
+    #privacy-notice {
+      position: fixed; left: 40px; bottom: 72px; z-index: 22;
+      max-width: 360px; font-family: "VT323", monospace; font-size: 10px;
+      line-height: 1.75; letter-spacing: 0.02em; color: black;
+      border: 1px solid rgba(0,0,0,0.9); background: rgba(255,255,255,0.92);
+      padding: 8px 10px 6px; opacity: 0; pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    #privacy-notice.visible { opacity: 1; pointer-events: auto; }
+    #privacy-notice p { margin-bottom: 4px; }
+    #privacy-notice-footer { display: flex; align-items: center; gap: 5px; margin-top: 6px; }
+    #privacy-notice a.ui-btn { text-decoration: none; display: inline-block; }
+
+    /* ── BOOT / FLASH / LOGO / LAYERS ── */
+    #boot-screen {
+      position: fixed; inset: 0; z-index: 200; background: white;
+      display: flex; align-items: center; justify-content: center;
+      font-family: "VT323", monospace; font-size: 13px;
+      line-height: 1.75; letter-spacing: 0.05em; color: black;
+      transition: opacity 0.65s ease;
+    }
+    #boot-lines { text-align: left; min-width: 300px; }
+    #boot-cursor { display: inline-block; animation: blink 0.7s step-end infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    #transition-flash {
+      position: fixed; inset: 0; z-index: 50; background: white;
+      pointer-events: none; opacity: 0;
+    }
+    #logo-br {
+      position: fixed; bottom: 40px; right: 40px;
+      z-index: 20; pointer-events: none; line-height: 0;
+    }
+    #three-layer, #video { position: fixed; inset: 0; pointer-events: none; }
+    #three-layer { z-index: 1; opacity: 0; pointer-events: none; }
+    #video { width: 1px; height: 1px; opacity: 0; }
+
+    /* ── MODE SELECTION POPUP ── */
+    .overlay-popup {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+    .overlay-popup.visible { opacity: 1; pointer-events: auto; }
+
+    .popup-box {
+      background: rgba(255,255,255,0.97);
+      border: 1px solid rgba(0,0,0,0.9);
+      font-family: "VT323", monospace;
+      padding: 16px 20px 14px;
+      min-width: 200px;
+    }
+    .popup-header {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+      padding-bottom: 6px; margin-bottom: 10px;
+      font-size: 10px; letter-spacing: 0.06em; opacity: 0.7;
+    }
+    .popup-close {
+      appearance: none; border: none; background: transparent;
+      font-family: "VT323", monospace; font-size: 12px;
+      cursor: pointer; color: black; padding: 0 2px; line-height: 1;
+    }
+    .popup-btns { display: flex; flex-direction: column; gap: 6px; }
+    .popup-action-btn {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.9);
+      background: rgba(255,255,255,0.92); color: black;
+      font-family: "VT323", monospace; font-size: 11px;
+      padding: 4px 10px; cursor: pointer; border-radius: 0;
+      letter-spacing: 0.04em; text-align: left; line-height: 1.3;
+      transition: background 0.1s, color 0.1s;
+    }
+    .popup-action-btn:hover { background: black; color: white; }
+
+    /* ── REC UI ── */
+    #rec-ui {
+      position: fixed; left: 40px; bottom: 40px;
+      z-index: 20; display: none; align-items: center; gap: 8px;
+      pointer-events: auto;
+    }
+    #rec-btn {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.9);
+      background: rgba(255,255,255,0.92); color: black;
+      font-family: "VT323", monospace; font-size: 10px;
+      padding: 2px 6px; cursor: pointer; border-radius: 0;
+      letter-spacing: 0.04em; user-select: none;
+    }
+    #rec-btn.recording {
+      background: rgba(0,0,0,0.9); color: white;
+    }
+    #rec-indicator {
+      font-family: "VT323", monospace; font-size: 10px;
+      color: black; letter-spacing: 0.04em;
+      display: none; align-items: center; gap: 5px;
+      user-select: none;
+    }
+    #rec-indicator.active { display: flex; }
+    #rec-dot { animation: rec-blink 1s step-end infinite; }
+    @keyframes rec-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    #rec-bar-wrap {
+      width: 80px; height: 6px;
+      border: 1px solid rgba(0,0,0,0.6);
+      background: transparent; overflow: hidden;
+    }
+    #rec-bar-fill {
+      height: 100%; width: 0%;
+      background: black;
+      transition: width 0.1s linear;
+    }
+    #rec-timer { font-size: 10px; color: black; min-width: 24px; }
+
+    /* ── RESULT POPUP ── */
+    #result-popup .popup-box { min-width: 260px; max-width: 320px; }
+    #result-thumb-wrap {
+      width: 100%; aspect-ratio: 16/9;
+      border: 1px solid rgba(0,0,0,0.15);
+      margin-bottom: 10px; overflow: hidden;
+      background: #f0f0f0; position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #result-thumb {
+      width: 100%; height: 100%; object-fit: contain;
+      display: block;
+    }
+    #result-video-icon {
+      position: absolute; font-size: 24px; opacity: 0.7;
+      pointer-events: none; display: none;
+    }
+    .result-actions {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .result-btn {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.9);
+      background: rgba(255,255,255,0.92); color: black;
+      font-family: "VT323", monospace; font-size: 10px;
+      padding: 3px 8px; cursor: pointer; border-radius: 0;
+      letter-spacing: 0.04em; flex: 1;
+      transition: background 0.1s, color 0.1s;
+    }
+    .result-btn:hover { background: black; color: white; }
+    .result-btn.share-btn { display: none; }
+
+    /* ── TEST BADGE ── */
+    #test-badge {
+      position: fixed; right: 40px; bottom: 40px;
+      z-index: 19; font-size: 9px; letter-spacing: 0.08em;
+      color: rgba(0,0,0,0.25); user-select: none; pointer-events: none;
+    }
+
+    /* ── MOBILE ── */
+    @media (orientation: portrait) and (max-width: 600px) {
+      #ui { left: max(20px, env(safe-area-inset-left,20px)); bottom: max(20px, env(safe-area-inset-bottom,20px)); gap: 8px; }
+      .ui-btn { font-size: 10px; padding: 3px 6px; }
+      #rec-ui { left: max(20px, env(safe-area-inset-left,20px)); bottom: max(20px, env(safe-area-inset-bottom,20px)); }
+      #logo-br { bottom: max(20px, env(safe-area-inset-bottom,20px)); right: max(20px, env(safe-area-inset-right,20px)); }
+      #logo-br img { width: 36px; height: 36px; }
+      #boot-screen { font-size: 11px; }
+      #boot-lines { min-width: 220px; }
+      .pc-label { display: none; }
+      .mobile-label { display: inline; }
+      .result-btn.share-btn { display: block; }
+      #ctrl-panel { left: max(20px, env(safe-area-inset-left,20px)); bottom: 60px; width: calc(100vw - 40px); }
+      #privacy-notice {
+        left: unset; right: max(20px, env(safe-area-inset-right,20px));
+        bottom: 72px; max-width: calc(100vw - 40px);
+        font-size: 8px; line-height: 1.55; padding: 5px 7px 4px;
+      }
+      #privacy-notice p { margin-bottom: 2px; }
+      #privacy-notice-footer { gap: 4px; margin-top: 4px; }
+    }
+  </style>
+
+  <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="boot-screen"><div id="boot-lines"></div></div>
+  <div id="transition-flash"></div>
+  <div id="logo-br">
+    <img src="./jianye-logo-250250.png" width="50" height="50" alt="" />
+  </div>
+  <div id="three-layer"></div>
+  <canvas id="ascii"></canvas>
+
+  <div id="privacy-notice">
+    <p>YOUR CAMERA IS USED FOR IN-BROWSER VISUAL EFFECTS ONLY.<br>
+    NO VIDEO OR IMAGES ARE RECORDED, STORED, OR TRANSMITTED.</p>
+    <p>カメラ映像はブラウザ内のビジュアルエフェクトのみに使用されます。<br>
+    録画・保存・外部への送信は一切行われません。</p>
+    <div id="privacy-notice-footer">
+      <a href="https://www.jianye.online/store-policy-1" target="_blank" class="ui-btn">PRIVACY POLICY →</a>
+      <button class="ui-btn" id="privacy-close">×</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div id="ctrl-panel">
+    <div id="ctrl-header">
+      <span id="ctrl-title">◈ SETTINGS</span>
+      <div id="ctrl-actions">
+        <button class="panel-btn" id="resetSettingsBtn">RESET</button>
+        <button class="panel-btn" id="closePanelBtn">×</button>
+      </div>
+    </div>
+    <div id="ctrl-body">
+      <div class="ctrl-row">
+        <div class="ctrl-label">RESOLUTION <span class="ctrl-val" id="val-cols">--</span></div>
+        <input type="range" id="sl-cols" min="30" max="200" step="2" value="120">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">SPECIAL 朱 <span class="ctrl-val" id="val-special">--</span></div>
+        <input type="range" id="sl-special" min="0" max="0.12" step="0.001" value="0.008">
+      </div>
+      <hr class="ctrl-sep">
+      <div class="ctrl-row">
+        <div class="ctrl-label">CONTRAST <span class="ctrl-val" id="val-contrast">--</span></div>
+        <input type="range" id="sl-contrast" min="0.5" max="3.5" step="0.02" value="1.56">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">GAMMA <span class="ctrl-val" id="val-gamma">--</span></div>
+        <input type="range" id="sl-gamma" min="0.3" max="1.8" step="0.01" value="0.82">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">BRIGHTNESS <span class="ctrl-val" id="val-bright">--</span></div>
+        <input type="range" id="sl-bright" min="0.4" max="2.0" step="0.02" value="1.0">
+      </div>
+      <hr class="ctrl-sep">
+      <div class="ctrl-row">
+        <div class="ctrl-label">SCANLINE <span class="ctrl-val" id="val-scan">--</span></div>
+        <input type="range" id="sl-scan" min="0" max="0.22" step="0.002" value="0.042">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">FLICKER <span class="ctrl-val" id="val-flicker">--</span></div>
+        <input type="range" id="sl-flicker" min="0" max="0.06" step="0.001" value="0.010">
+      </div>
+      <hr class="ctrl-sep">
+      <div class="ctrl-row">
+        <div class="ctrl-label">FILM GRAIN <span class="ctrl-val" id="val-grain">--</span></div>
+        <input type="range" id="sl-grain" min="0" max="0.25" step="0.005" value="0.055">
+      </div>
+      <hr class="ctrl-sep">
+      <div class="ctrl-row">
+        <div class="ctrl-label">COLOR MODE</div>
+        <div class="color-grid">
+          <button class="color-btn active" data-mode="MONO">MONO</button>
+          <button class="color-btn" data-mode="GREEN">GREEN</button>
+          <button class="color-btn" data-mode="AMBER">AMBER</button>
+          <button class="color-btn" data-mode="RED">RED</button>
+          <button class="color-btn" data-mode="INVERT">INVERT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODE SELECTION POPUP -->
+  <div id="mode-popup" class="overlay-popup">
+    <div class="popup-box">
+      <div class="popup-header">
+        <span>◈ CAPTURE</span>
+        <button class="popup-close" id="mode-close">×</button>
+      </div>
+      <div class="popup-btns">
+        <button class="popup-action-btn" id="btn-photo">CAPTURE PHOTO</button>
+        <button class="popup-action-btn" id="btn-movie">CAPTURE MOVIE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT POPUP -->
+  <div id="result-popup" class="overlay-popup">
+    <div class="popup-box" id="result-popup-box">
+      <div class="popup-header">
+        <span id="result-title">◈ CAPTURED</span>
+        <button class="popup-close" id="result-close">×</button>
+      </div>
+      <div id="result-thumb-wrap">
+        <img id="result-thumb" src="" alt="" />
+        <span id="result-video-icon">▶</span>
+      </div>
+      <div class="result-actions">
+        <button class="result-btn" id="result-download">DOWNLOAD</button>
+        <button class="result-btn share-btn" id="result-share">SHARE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN UI ROW -->
+  <div id="ui">
+    <button id="enableCameraBtn" class="ui-btn">CAMERA</button>
+    <button id="settingsBtn" class="ui-btn">SETTINGS</button>
+    <button id="captureBtn" class="ui-btn">CAPTURE</button>
+    <button id="closeBtn" class="ui-btn" onclick="if(window.opener){window.close();}else{window.history.back();}">
+      <span class="pc-label">BACK TO TOP</span><span class="mobile-label">×</span>
+    </button>
+    <div id="status">SOURCE: OBJECT</div>
+  </div>
+
+  <!-- REC UI (shown during recording mode) -->
+  <div id="rec-ui">
+    <div id="rec-indicator">
+      <span id="rec-dot">●</span>
+      <span>REC</span>
+      <div id="rec-bar-wrap"><div id="rec-bar-fill"></div></div>
+      <span id="rec-timer">00:00</span>
+    </div>
+    <button id="rec-btn" type="button">REC</button>
+    <button id="rec-cancel" class="ui-btn" type="button">CANCEL</button>
+  </div>
+
+  <div id="test-badge">CAPTURE TEST BUILD</div>
+  <video id="video" autoplay playsinline muted></video>
+
+  <script>
+    if (new URLSearchParams(location.search).has("noui")) {
+      document.getElementById("ui").style.display = "none";
+      const bs = document.getElementById("boot-screen");
+      if (bs) bs.style.display = "none";
+    }
+  </script>
+  <script>
+    (function () {
+      const notice   = document.getElementById('privacy-notice');
+      const closeBtn = document.getElementById('privacy-close');
+      const camBtn   = document.getElementById('enableCameraBtn');
+      let dismissTimer = null;
+      function showNotice() { notice.classList.add('visible'); dismissTimer = setTimeout(hideNotice, 10000); }
+      function hideNotice() { clearTimeout(dismissTimer); notice.classList.remove('visible'); }
+      closeBtn.addEventListener('click', hideNotice);
+      let shown = false;
+      camBtn.addEventListener('click', () => {
+        if (!shown && camBtn.textContent.trim() === 'CAMERA') { shown = true; showNotice(); }
+      });
+    })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+  <script type="module" src="./capture-test-main.js"></script>
+</body>
+</html>
