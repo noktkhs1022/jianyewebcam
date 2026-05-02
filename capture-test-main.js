@@ -262,23 +262,23 @@ const SPECIAL_CHAR = "朱";
 // COLOR THEME
 // =====================================================
 const THEMES = {
-  MONO:   { bg: "#ffffff", fg: "0,0,0",       grainFilter: "",
+  MONO:   { bg: "#ffffff", fg: "0,0,0",       grainFilter: "",          logo: "./logo-mono.png",
             panelBg: "rgba(255,255,255,0.97)", panelFg: "#000000",
             panelBorder: "rgba(0,0,0,0.9)",    panelMuted: "rgba(0,0,0,0.5)",
             panelSep: "rgba(0,0,0,0.12)",      thumb: "#000000", track: "rgba(0,0,0,0.22)" },
-  GREEN:  { bg: "#050e07", fg: "0,255,65",    grainFilter: "hue-rotate(96deg) saturate(2.5)",
+  GREEN:  { bg: "#050e07", fg: "0,255,65",    grainFilter: "hue-rotate(96deg) saturate(2.5)", logo: "./logo-green.png",
             panelBg: "rgba(5,16,8,0.97)",      panelFg: "#00ff41",
             panelBorder: "rgba(0,255,65,0.6)", panelMuted: "rgba(0,255,65,0.45)",
             panelSep: "rgba(0,255,65,0.18)",   thumb: "#00ff41", track: "rgba(0,255,65,0.25)" },
-  AMBER:  { bg: "#0d0800", fg: "255,176,0",   grainFilter: "sepia(1) saturate(4) hue-rotate(5deg)",
+  AMBER:  { bg: "#0d0800", fg: "255,176,0",   grainFilter: "sepia(1) saturate(4) hue-rotate(5deg)", logo: "./logo-amber.png",
             panelBg: "rgba(18,11,0,0.97)",     panelFg: "#ffb000",
             panelBorder: "rgba(255,176,0,0.6)",panelMuted: "rgba(255,176,0,0.45)",
             panelSep: "rgba(255,176,0,0.18)",  thumb: "#ffb000", track: "rgba(255,176,0,0.25)" },
-  RED:    { bg: "#0d0000", fg: "255,38,0",    grainFilter: "hue-rotate(330deg) saturate(3)",
+  RED:    { bg: "#0d0000", fg: "255,38,0",    grainFilter: "hue-rotate(330deg) saturate(3)",   logo: "./logo-red.png",
             panelBg: "rgba(18,0,0,0.97)",      panelFg: "#ff2600",
             panelBorder: "rgba(255,38,0,0.6)", panelMuted: "rgba(255,38,0,0.45)",
             panelSep: "rgba(255,38,0,0.18)",   thumb: "#ff2600", track: "rgba(255,38,0,0.25)" },
-  INVERT: { bg: "#000000", fg: "255,255,255", grainFilter: "invert(1)",
+  INVERT: { bg: "#000000", fg: "255,255,255", grainFilter: "invert(1)",                        logo: "./logo-invert.png",
             panelBg: "rgba(18,18,18,0.97)",    panelFg: "#ffffff",
             panelBorder: "rgba(255,255,255,0.45)", panelMuted: "rgba(255,255,255,0.4)",
             panelSep: "rgba(255,255,255,0.14)",    thumb: "#ffffff", track: "rgba(255,255,255,0.25)" },
@@ -292,8 +292,8 @@ function applyColorMode(mode) {
   currentTheme = T;
 
   document.body.style.background = T.bg;
-  // Three.js scene always stays white — ASCII sampling reads white bg correctly.
-  // Color theming is applied to ASCII text color and page background only.
+  const logoEl = document.querySelector("#logo-br img");
+  if (logoEl) logoEl.src = T.logo;
 
   const root = document.documentElement;
   root.style.setProperty("--thumb-color",  T.thumb);
@@ -1057,7 +1057,7 @@ async function buildHighResOffscreen() {
   ctx.drawImage(asciiCanvas, 0, 0);
   // fetchでバイナリ取得→BlobURL描画（DOMやキャッシュ状態に非依存）
   try {
-    const resp    = await fetch("./jianye-logo-250250.png");
+    const resp    = await fetch(currentTheme.logo);
     const blob    = await resp.blob();
     const blobUrl = URL.createObjectURL(blob);
     const logoImg = await new Promise((res, rej) => {
