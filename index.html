@@ -493,7 +493,12 @@
       closeBtn.addEventListener('click', hideNotice);
       let shown = false;
       camBtn.addEventListener('click', () => {
-        if (!shown && camBtn.textContent.trim() === 'CAMERA') { shown = true; showNotice(); }
+        const recUiVisible  = document.getElementById('rec-ui')?.style.display !== 'none' &&
+                              document.getElementById('rec-ui')?.style.display !== '';
+        const resultVisible = document.getElementById('result-popup')?.classList.contains('visible');
+        if (!shown && !recUiVisible && !resultVisible && camBtn.textContent.trim() === 'CAMERA') {
+          shown = true; showNotice();
+        }
       });
     })();
   </script>
