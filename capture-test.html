@@ -199,21 +199,15 @@
 
     /* ── REC UI ── */
     #rec-ui {
-      position: fixed; left: 40px; bottom: 40px;
-      z-index: 20; display: none; align-items: center; gap: 8px;
+      position: fixed;
+      left: 50%; bottom: 48px;
+      transform: translateX(-50%);
+      z-index: 20; display: none;
+      flex-direction: column; align-items: center; gap: 10px;
       pointer-events: auto;
     }
-    #rec-btn {
-      appearance: none;
-      border: 1px solid rgba(0,0,0,0.9);
-      background: rgba(255,255,255,0.92); color: black;
-      font-family: "VT323", monospace; font-size: 10px;
-      padding: 2px 6px; cursor: pointer; border-radius: 0;
-      letter-spacing: 0.04em; user-select: none;
-    }
-    #rec-btn.recording {
-      background: rgba(0,0,0,0.9); color: white;
-    }
+
+    /* インジケーター行：● REC ████ 00:08 */
     #rec-indicator {
       font-family: "VT323", monospace; font-size: 10px;
       color: black; letter-spacing: 0.04em;
@@ -221,19 +215,63 @@
       user-select: none;
     }
     #rec-indicator.active { display: flex; }
-    #rec-dot { animation: rec-blink 1s step-end infinite; }
+    #rec-dot { animation: rec-blink 1s step-end infinite; color: #cc0000; }
     @keyframes rec-blink { 0%,100%{opacity:1} 50%{opacity:0} }
     #rec-bar-wrap {
-      width: 80px; height: 6px;
-      border: 1px solid rgba(0,0,0,0.6);
+      width: 80px; height: 4px;
+      border: 1px solid rgba(0,0,0,0.5);
       background: transparent; overflow: hidden;
     }
     #rec-bar-fill {
       height: 100%; width: 0%;
-      background: black;
+      background: #cc0000;
       transition: width 0.1s linear;
     }
-    #rec-timer { font-size: 10px; color: black; min-width: 24px; }
+    #rec-timer { font-size: 10px; color: black; min-width: 28px; }
+
+    /* ボタン行：[○] [STOP] [CANCEL] */
+    #rec-btn-row {
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    /* 円形RECボタン */
+    #rec-btn {
+      appearance: none;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.8);
+      background: rgba(255,255,255,0.92);
+      cursor: pointer; position: relative;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.15s;
+    }
+    /* 内側の円 */
+    #rec-btn::after {
+      content: '';
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: transparent;
+      border: 1.5px solid rgba(0,0,0,0.25);
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #rec-btn.recording {
+      border-color: #cc0000;
+    }
+    #rec-btn.recording::after {
+      background: #cc0000;
+      border-color: #cc0000;
+    }
+
+    #rec-stop, #rec-cancel {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.9);
+      background: rgba(255,255,255,0.92); color: black;
+      font-family: "VT323", monospace; font-size: 10px;
+      padding: 2px 6px; cursor: pointer; border-radius: 0;
+      letter-spacing: 0.04em;
+    }
+    #rec-stop { display: none; }
+    #rec-stop.visible { display: inline-block; }
 
     /* ── RESULT POPUP ── */
     #result-popup .popup-box { min-width: 260px; max-width: 320px; }
@@ -437,8 +475,11 @@
       <div id="rec-bar-wrap"><div id="rec-bar-fill"></div></div>
       <span id="rec-timer">00:00</span>
     </div>
-    <button id="rec-btn" type="button">REC</button>
-    <button id="rec-cancel" class="ui-btn" type="button">CANCEL</button>
+    <div id="rec-btn-row">
+      <button id="rec-btn" type="button"></button>
+      <button id="rec-stop" type="button">STOP</button>
+      <button id="rec-cancel" type="button">CANCEL</button>
+    </div>
   </div>
 
   <div id="test-badge">CAPTURE TEST BUILD</div>

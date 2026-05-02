@@ -1039,16 +1039,14 @@ function detectMimeType() {
 function enterRecordingMode() {
   document.getElementById("ui").style.display = "none";
   document.getElementById("rec-ui").style.display = "flex";
-  const recBtn = document.getElementById("rec-btn");
-  recBtn.addEventListener("mousedown",  onRecPress);
-  recBtn.addEventListener("touchstart", onRecPress,   { passive: true });
-  recBtn.addEventListener("mouseup",    onRecRelease);
-  recBtn.addEventListener("touchend",   onRecRelease, { passive: true });
+  document.getElementById("rec-btn").addEventListener("click", onRecBtnClick);
+  document.getElementById("rec-stop").addEventListener("click", stopRecording);
   document.getElementById("rec-cancel").addEventListener("click", exitRecordingMode, { once: true });
 }
 
-function onRecPress(e)   { e.preventDefault?.(); if (!_isRecording) startRecording(); }
-function onRecRelease()  { if (_isRecording) stopRecording(); }
+function onRecBtnClick() {
+  if (!_isRecording) startRecording();
+}
 
 function startRecording() {
   _isRecording = true; _recordedChunks = [];
@@ -1060,7 +1058,8 @@ function startRecording() {
   _mediaRecorder.start(100);
   document.getElementById("rec-btn").classList.add("recording");
   document.getElementById("rec-indicator").classList.add("active");
-  _recTickId  = setInterval(updateRecTick, 100);
+  document.getElementById("rec-stop").classList.add("visible");
+  _recTickId   = setInterval(updateRecTick, 100);
   _recAutoStop = setTimeout(stopRecording, REC_MAX_SEC * 1000);
 }
 
@@ -1071,22 +1070,29 @@ function stopRecording() {
 }
 
 function onRecordingStop() {
-  const thumbURL = asciiCanvas.toDataURL("image/jpeg", 0.85);
+  const blob = new Blob(_recordedChunks, { type: _recMimeType });
   exitRecordingMode();
-  showResultPopup("video", thumbURL, new Blob(_recordedChunks, { type: _recMimeType }));
+  // rAFを2回挟みrenderLoopが1フレーム描画した後にサムネイルをキャプチャ
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const thumbURL = asciiCanvas.toDataURL("image/jpeg", 0.85);
+      showResultPopup("video", thumbURL, blob);
+    });
+  });
 }
 
 function exitRecordingMode() {
   clearTimeout(_recAutoStop); clearInterval(_recTickId);
   _isRecording = false;
-  document.getElementById("rec-btn").classList.remove("recording");
+  const recBtn = document.getElementById("rec-btn");
+  recBtn.classList.remove("recording");
+  recBtn.removeEventListener("click", onRecBtnClick);
   document.getElementById("rec-indicator").classList.remove("active");
   document.getElementById("rec-bar-fill").style.width = "0%";
   document.getElementById("rec-timer").textContent = "00:00";
+  document.getElementById("rec-stop").classList.remove("visible");
   document.getElementById("rec-ui").style.display = "none";
   document.getElementById("ui").style.display = "";
-  const old = document.getElementById("rec-btn");
-  old.parentNode.replaceChild(old.cloneNode(true), old);
 }
 
 function updateRecTick() {
