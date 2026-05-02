@@ -40,14 +40,6 @@ const _logoReady = new Promise(resolve => {
   _logoImg.src = "./jianye-logo-250250.png";
 });
 
-// 録画用テーマロゴ（テーマ切替時に更新）
-let _themeLogoImg = null;
-function _loadThemeLogo(src) {
-  const img = new Image();
-  img.onload  = () => { _themeLogoImg = img; };
-  img.onerror = () => {};
-  img.src = src;
-}
 
 const video = document.getElementById("video");
 const enableCameraBtn = document.getElementById("enableCameraBtn");
@@ -294,13 +286,11 @@ const THEMES = {
 };
 
 let currentTheme = THEMES.MONO;
-_loadThemeLogo(THEMES.MONO.logo);
 
 function applyColorMode(mode) {
   const T = THEMES[mode];
   if (!T) return;
   currentTheme = T;
-  _loadThemeLogo(T.logo);
 
   document.body.style.background = T.bg;
   const logoEl = document.querySelector("#logo-br img");
@@ -1011,27 +1001,12 @@ async function buildHighResOffscreen() {
   ctx.fillStyle = currentTheme.bg;
   ctx.fillRect(0, 0, offscreen.width, offscreen.height);
   ctx.drawImage(asciiCanvas, 0, 0);
-  // fetchでバイナリ取得→BlobURL描画（DOMやキャッシュ状態に非依存）
-  try {
-    const resp    = await fetch(currentTheme.logo);
-    const blob    = await resp.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const logoImg = await new Promise((res, rej) => {
-      const img = new Image();
-      img.onload  = () => res(img);
-      img.onerror = rej;
-      img.src = blobUrl;
-    });
-    URL.revokeObjectURL(blobUrl);
-    const scale    = asciiCanvas.width / window.innerWidth;
-    const portrait = window.innerHeight > window.innerWidth;
-    const logoSize = Math.round((IS_MOBILE ? 36 : 50) * scale);
-    const margin   = Math.round((portrait ? 20 : 40) * scale);
-    const viewportH = Math.floor(window.innerHeight * scale);
-    ctx.drawImage(logoImg, offscreen.width - margin - logoSize,
-                           viewportH       - margin - logoSize, logoSize, logoSize);
-  } catch (e) {
-    console.warn("logo draw failed:", e);
+  // DOMのロゴ要素をそのまま転写（位置・サイズ・テーマが確実に一致）
+  const logoEl = document.querySelector("#logo-br img");
+  if (logoEl && logoEl.complete && logoEl.naturalWidth > 0) {
+    const rect  = logoEl.getBoundingClientRect();
+    const scale = asciiCanvas.width / window.innerWidth;
+    ctx.drawImage(logoEl, rect.left * scale, rect.top * scale, rect.width * scale, rect.height * scale);
   }
   const noiseCanvas = document.createElement("canvas");
   noiseCanvas.width = offscreen.width; noiseCanvas.height = offscreen.height;
@@ -1342,16 +1317,11 @@ function renderLoop() {
     _recordCtx.fillStyle = currentTheme.bg;
     _recordCtx.fillRect(0, 0, _recordCanvas.width, _recordCanvas.height);
     _recordCtx.drawImage(asciiCanvas, 0, 0);
-    if (_themeLogoImg) {
-      const scale     = asciiCanvas.width / window.innerWidth;
-      const portrait  = window.innerHeight > window.innerWidth;
-      const logoSize  = Math.round((IS_MOBILE ? 36 : 50) * scale);
-      const margin    = Math.round((portrait ? 20 : 40) * scale);
-      const viewportH = Math.floor(window.innerHeight * scale);
-      _recordCtx.drawImage(_themeLogoImg,
-        _recordCanvas.width - margin - logoSize,
-        viewportH           - margin - logoSize,
-        logoSize, logoSize);
+    const logoEl = document.querySelector("#logo-br img");
+    if (logoEl && logoEl.complete && logoEl.naturalWidth > 0) {
+      const rect  = logoEl.getBoundingClientRect();
+      const scale = asciiCanvas.width / window.innerWidth;
+      _recordCtx.drawImage(logoEl, rect.left * scale, rect.top * scale, rect.width * scale, rect.height * scale);
     }
   }
 
