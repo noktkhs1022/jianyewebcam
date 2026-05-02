@@ -1059,17 +1059,27 @@ async function buildHighResOffscreen() {
   ctx.fillStyle = currentTheme.bg;
   ctx.fillRect(0, 0, offscreen.width, offscreen.height);
   ctx.drawImage(asciiCanvas, 0, 0);
-  // DOMのimg要素を優先使用（ページ読み込み時に確実にロード済み）、次点でプリロード画像
-  const logoEl = document.querySelector("#logo-br img") || (_logoImg.naturalWidth > 0 ? _logoImg : null);
-  if (logoEl) {
+  // fetchでバイナリ取得→BlobURL描画（DOMやキャッシュ状態に非依存）
+  try {
+    const resp    = await fetch("./jianye-logo-250250.png");
+    const blob    = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const logoImg = await new Promise((res, rej) => {
+      const img = new Image();
+      img.onload  = () => res(img);
+      img.onerror = rej;
+      img.src = blobUrl;
+    });
+    URL.revokeObjectURL(blobUrl);
     const scale    = asciiCanvas.width / window.innerWidth;
     const portrait = window.innerHeight > window.innerWidth;
     const logoSize = Math.round((IS_MOBILE ? 36 : 50) * scale);
     const margin   = Math.round((portrait ? 20 : 40) * scale);
-    // ロゴはビューポート内（コンテンツエリア）の右下に配置
     const viewportH = Math.floor(window.innerHeight * scale);
-    ctx.drawImage(logoEl, offscreen.width - margin - logoSize,
-                          viewportH       - margin - logoSize, logoSize, logoSize);
+    ctx.drawImage(logoImg, offscreen.width - margin - logoSize,
+                           viewportH       - margin - logoSize, logoSize, logoSize);
+  } catch (e) {
+    console.warn("logo draw failed:", e);
   }
   const noiseCanvas = document.createElement("canvas");
   noiseCanvas.width = offscreen.width; noiseCanvas.height = offscreen.height;
