@@ -769,42 +769,6 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
 
   const fontSize = Math.max(8, Math.floor(cellH * fontSizeScale));
 
-  // ── サイトラベル：文字ごとのクリアランスゾーン計算（案B）──
-  const SITE_TEXT    = "www.jianye.online";
-  const isPortrait   = window.innerHeight > window.innerWidth;
-  const effDpr       = w / window.innerWidth;
-  const siteFontSize = Math.round((isPortrait ? 10 : 14) * effDpr);
-  const siteBottomMargin = (isPortrait ? 85 : 60) * effDpr;
-  // ビューポート高さ基準で配置（screen.height全体だとビューポート外に落ちる）
-  const viewportH = Math.floor(window.innerHeight * effDpr);
-  const siteY = viewportH - siteBottomMargin;
-  const sPadX = siteFontSize * 0.15; // 横: 文字幅ぴったり
-  const sPadY = siteFontSize * 0.35; // 縦: 少し余裕
-
-  // 各文字の位置を計算（textAlign:"left" で左端から積算）
-  asciiCtx.font = `${siteFontSize}px "VT323", monospace`;
-  asciiCtx.textAlign = "left";
-  const totalTW = asciiCtx.measureText(SITE_TEXT).width;
-  const siteStartX = w / 2 - totalTW / 2;
-
-  const charZones = [];
-  let curX = siteStartX;
-  for (const ch of SITE_TEXT) {
-    const cw = asciiCtx.measureText(ch).width;
-    charZones.push({
-      l: curX - sPadX,
-      r: curX + cw + sPadX,
-      t: siteY - siteFontSize / 2 - sPadY,
-      b: siteY + siteFontSize / 2 + sPadY,
-    });
-    curX += cw;
-  }
-  // ループ内チェック用: 全体バウンディング（早期脱出用）
-  const siteBBoxL = siteStartX - sPadX;
-  const siteBBoxR = siteStartX + totalTW + sPadX;
-  const siteBBoxT = siteY - siteFontSize / 2 - sPadY;
-  const siteBBoxB = siteY + siteFontSize / 2 + sPadY;
-
   asciiCtx.textAlign = "center";
   asciiCtx.textBaseline = "middle";
   asciiCtx.font = `${fontSize}px ${asciiConfig.fontFamily}`;
@@ -819,15 +783,6 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
       const ch = pickAsciiChar(luma, edge, nx, ny, faceBoxNorm, timeSec, sourceMode);
       const px = x * cellW + cellW * 0.5;
       const py = y * lineHeight + lineHeight * 0.5;
-
-      // 文字ごとのクリアランスチェック（全体BBOXで早期脱出）
-      if (px >= siteBBoxL && px <= siteBBoxR && py >= siteBBoxT && py <= siteBBoxB) {
-        let blocked = false;
-        for (const z of charZones) {
-          if (px >= z.l && px <= z.r) { blocked = true; break; }
-        }
-        if (blocked) continue;
-      }
 
       if (ch === SPECIAL_CHAR) {
         asciiCtx.fillStyle = sourceMode === "camera"
@@ -848,16 +803,6 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   }
 
   drawMinimalFx(timeSec, sourceMode);
-
-  // ── サイトラベル描画 ──
-  asciiCtx.save();
-  asciiCtx.font         = `${siteFontSize}px "VT323", monospace`;
-  asciiCtx.textAlign    = "left";
-  asciiCtx.textBaseline = "middle";
-  asciiCtx.fillStyle    = `rgba(${currentTheme.fg},0.62)`;
-  asciiCtx.fillText(SITE_TEXT, siteStartX, siteY);
-  asciiCtx.restore();
-
   drawCoordOverlay(timeSec, sourceMode);
   drawHudOnCanvas();
 }
