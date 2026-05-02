@@ -249,10 +249,15 @@
       transition: background 0.15s, border-color 0.15s, color 0.15s;
       user-select: none;
     }
+    @keyframes rec-pulse {
+      0%, 100% { background: #cc0000; border-color: #cc0000; }
+      50%       { background: #990000; border-color: #990000; }
+    }
     #rec-btn.recording {
       background: #cc0000;
       border-color: #cc0000;
       color: white;
+      animation: rec-pulse 2s ease-in-out infinite;
     }
 
     #rec-cancel {
