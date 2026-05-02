@@ -1116,7 +1116,6 @@ function enterRecordingMode() {
   document.getElementById("ui").style.display = "none";
   document.getElementById("rec-ui").style.display = "flex";
   document.getElementById("rec-btn").addEventListener("click", onRecBtnClick);
-  document.getElementById("rec-stop").addEventListener("click", stopRecording);
   document.getElementById("rec-cancel").addEventListener("click", exitRecordingMode, { once: true });
 }
 
