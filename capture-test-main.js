@@ -32,6 +32,10 @@ const threeLayer = document.getElementById("three-layer");
 const asciiCanvas = document.getElementById("ascii");
 const asciiCtx = asciiCanvas.getContext("2d");
 
+// ロゴ画像をプリロード（captureCanvas内のcomplete依存を排除）
+const _logoImg = new Image();
+_logoImg.src = "./jianye-logo-250250.png";
+
 const video = document.getElementById("video");
 const enableCameraBtn = document.getElementById("enableCameraBtn");
 const captureBtn = document.getElementById("captureBtn");
@@ -731,7 +735,11 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   const fontSizeScale = asciiConfig.baseFontSizeScale * (1 + proximity01 * fontGrow);
   const lineHeightScale = asciiConfig.lineHeightBaseScale * (1 + proximity01 * lineGrow);
   const lineHeight = cellH * lineHeightScale;
-  const rows = Math.max(1, Math.floor(h / lineHeight));
+  // モバイルではcanvasがscreen.height分あるが、ASCIIはビューポート高さ分のみ描画
+  // → Three.jsのレンダリングアスペクト比を維持する
+  const dpr = w / window.innerWidth;
+  const viewportH = IS_MOBILE ? Math.floor(window.innerHeight * dpr) : h;
+  const rows = Math.max(1, Math.floor(viewportH / lineHeight));
 
   // ASCII専用sampleCanvasを使用 → MP用との競合解消
   sampleCanvasAscii.width = cols;
@@ -771,8 +779,8 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   asciiCtx.font = `${siteFontSize}px "VT323", monospace`;
   const siteTW  = asciiCtx.measureText(SITE_TEXT).width;
   const siteX   = w / 2;
-  const sPadX   = siteFontSize * 1.0;
-  const sPadY   = siteFontSize * 0.7;
+  const sPadX   = siteFontSize * 0.35;
+  const sPadY   = siteFontSize * 0.3;
   const sClearL = siteX - siteTW / 2 - sPadX;
   const sClearR = siteX + siteTW / 2 + sPadX;
   const sClearT = siteY - siteFontSize / 2 - sPadY;
@@ -1025,14 +1033,13 @@ function buildHighResOffscreen() {
   ctx.fillStyle = currentTheme.bg;
   ctx.fillRect(0, 0, offscreen.width, offscreen.height);
   ctx.drawImage(asciiCanvas, 0, 0);
-  const logoImg = document.querySelector("#logo-br img");
-  if (logoImg && logoImg.complete) {
-    const scale = asciiCanvas.width / window.innerWidth;
+  if (_logoImg.complete && _logoImg.naturalWidth > 0) {
+    const scale   = asciiCanvas.width / window.innerWidth;
     const portrait = window.innerHeight > window.innerWidth;
     const logoSize = Math.round((IS_MOBILE ? 36 : 50) * scale);
     const margin   = Math.round((portrait ? 20 : 40) * scale);
-    ctx.drawImage(logoImg, offscreen.width - margin - logoSize,
-                           offscreen.height - margin - logoSize, logoSize, logoSize);
+    ctx.drawImage(_logoImg, offscreen.width  - margin - logoSize,
+                            offscreen.height - margin - logoSize, logoSize, logoSize);
   }
   const noiseCanvas = document.createElement("canvas");
   noiseCanvas.width = offscreen.width; noiseCanvas.height = offscreen.height;
