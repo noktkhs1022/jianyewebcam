@@ -191,10 +191,7 @@ function drawHudOnCanvas() {
   const w = asciiCanvas.width, h = asciiCanvas.height;
   const dpr = asciiCanvas.width / window.innerWidth;
   const isPortrait = window.innerHeight > window.innerWidth;
-  // モバイル縦: Instagramストーリーズ上部UI（約12%）をクリアするためcanvas高の12%をtop margin
-  const margin = (IS_MOBILE && isPortrait)
-    ? Math.round(h * 0.12)
-    : Math.round((isPortrait ? 20 : 40) * dpr);
+  const margin = Math.round((isPortrait ? 20 : 40) * dpr);
   const fs = Math.round((isPortrait ? 8 : 10.5) * dpr);
   const lh = fs * 1.55;
   const lx = margin;
@@ -780,7 +777,9 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   const effDpr       = w / window.innerWidth;
   const siteFontSize = Math.round((isPortrait ? 10 : 14) * effDpr);
   const siteBottomMargin = (isPortrait ? 85 : 60) * effDpr;
-  const siteY = h - siteBottomMargin;
+  // ビューポート高さ基準で配置（screen.height全体だとビューポート外に落ちる）
+  const viewportH = Math.floor(window.innerHeight * effDpr);
+  const siteY = viewportH - siteBottomMargin;
   const sPadX = siteFontSize * 0.15; // 横: 文字幅ぴったり
   const sPadY = siteFontSize * 0.35; // 縦: 少し余裕
 
@@ -890,9 +889,7 @@ function drawCoordOverlay(timeSec, sourceMode) {
   const h = asciiCanvas.height;
   const dpr = asciiCanvas.width / window.innerWidth;
   const isPortrait = window.innerHeight > window.innerWidth;
-  const margin = (IS_MOBILE && isPortrait)
-    ? Math.round(h * 0.12)
-    : Math.round((isPortrait ? 20 : 40) * dpr);
+  const margin = Math.round((isPortrait ? 20 : 40) * dpr);
   const fs = Math.round((isPortrait ? 8 : 10.5) * dpr);
   const lh = fs * 1.55;
   const lx = margin;
