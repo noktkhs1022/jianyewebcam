@@ -34,7 +34,11 @@ const asciiCtx = asciiCanvas.getContext("2d");
 
 // ロゴ画像をプリロード（captureCanvas内のcomplete依存を排除）
 const _logoImg = new Image();
-_logoImg.src = "./jianye-logo-250250.png";
+const _logoReady = new Promise(resolve => {
+  _logoImg.onload  = resolve;
+  _logoImg.onerror = resolve;
+  _logoImg.src = "./jianye-logo-250250.png";
+});
 
 const video = document.getElementById("video");
 const enableCameraBtn = document.getElementById("enableCameraBtn");
@@ -1030,7 +1034,7 @@ if (bc) {
 // CAPTURE / RECORD — NEW FLOW
 // =====================================================
 
-function buildHighResOffscreen() {
+async function buildHighResOffscreen() {
   // モバイル: canvasが既に物理解像度なのでスケール不要
   // デスクトップ: 3倍アップスケール
   const CAPTURE_SCALE = IS_MOBILE ? 1 : 3;
@@ -1055,7 +1059,8 @@ function buildHighResOffscreen() {
   ctx.fillStyle = currentTheme.bg;
   ctx.fillRect(0, 0, offscreen.width, offscreen.height);
   ctx.drawImage(asciiCanvas, 0, 0);
-  if (_logoImg.complete && _logoImg.naturalWidth > 0) {
+  await _logoReady;
+  if (_logoImg.naturalWidth > 0) {
     const scale   = asciiCanvas.width / window.innerWidth;
     const portrait = window.innerHeight > window.innerWidth;
     const logoSize = Math.round((IS_MOBILE ? 36 : 50) * scale);
@@ -1079,8 +1084,8 @@ function buildHighResOffscreen() {
   return offscreen;
 }
 
-function doPhotoCapture() {
-  const offscreen = buildHighResOffscreen();
+async function doPhotoCapture() {
+  const offscreen = await buildHighResOffscreen();
   showResultPopup("photo", offscreen.toDataURL("image/png"), null);
 }
 
