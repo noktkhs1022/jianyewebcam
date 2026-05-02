@@ -969,10 +969,14 @@ if (bc) {
 // =====================================================
 
 function buildHighResOffscreen() {
-  const CAPTURE_SCALE = 3;
+  // モバイル: canvasが既に物理解像度なのでスケール不要
+  // デスクトップ: 3倍アップスケール
+  const CAPTURE_SCALE = IS_MOBILE ? 1 : 3;
   const origW = asciiCanvas.width, origH = asciiCanvas.height;
-  asciiCanvas.width  = Math.round(window.innerWidth  * CAPTURE_SCALE);
-  asciiCanvas.height = Math.round(window.innerHeight * CAPTURE_SCALE);
+  if (CAPTURE_SCALE > 1) {
+    asciiCanvas.width  = Math.round(window.innerWidth  * CAPTURE_SCALE);
+    asciiCanvas.height = Math.round(window.innerHeight * CAPTURE_SCALE);
+  }
   state.captureMode = true;
   const elapsed = clock.getElapsedTime();
   if (state.source === "object") {
@@ -1008,7 +1012,9 @@ function buildHighResOffscreen() {
   }
   nctx.putImageData(nd, 0, 0);
   ctx.globalAlpha = 0.055; ctx.drawImage(noiseCanvas, 0, 0); ctx.globalAlpha = 1.0;
-  asciiCanvas.width = origW; asciiCanvas.height = origH;
+  if (CAPTURE_SCALE > 1) {
+    asciiCanvas.width = origW; asciiCanvas.height = origH;
+  }
   return offscreen;
 }
 
@@ -1229,21 +1235,27 @@ enableCameraBtn.addEventListener("click", async () => {
 // RESIZE
 // =====================================================
 function resizeAll() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  // モバイルはscreen.heightで物理解像度全体を使用
+  // → ビューポート外（ナビバー下）も描画・書き出しに含まれる
+  const canvasH = IS_MOBILE ? screen.height : h;
+  const dpr = Math.min(window.devicePixelRatio, pc.pixelRatio);
 
   renderer.setPixelRatio(pc.pixelRatio);
   renderer.setSize(Math.round(w * THREE_SCALE), Math.round(h * THREE_SCALE), false);
-  // CSSサイズは常にフル
-  renderer.domElement.style.width = `${w}px`;
+  renderer.domElement.style.width  = `${w}px`;
   renderer.domElement.style.height = `${h}px`;
 
+  // Three.jsのアスペクト比はビューポート基準のまま
   camera3D.aspect = w / h;
   camera3D.updateProjectionMatrix();
 
-  asciiCanvas.width = Math.floor(w * Math.min(window.devicePixelRatio, pc.pixelRatio));
-  asciiCanvas.height = Math.floor(h * Math.min(window.devicePixelRatio, pc.pixelRatio));
-  asciiCanvas.style.width = `${w}px`;
-  asciiCanvas.style.height = `${h}px`;
+  // canvasバッファ: モバイルは物理解像度フル、PCはビューポート×dpr
+  asciiCanvas.width  = Math.floor(w       * dpr);
+  asciiCanvas.height = Math.floor(canvasH * dpr);
+  asciiCanvas.style.width  = `${w}px`;
+  asciiCanvas.style.height = `${canvasH}px`;
 
   camera3D.position.set(0, w < 768 ? 1.0 : 0.9, w < 768 ? 6.2 : 5.8);
 }
