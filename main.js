@@ -32,6 +32,15 @@ const threeLayer = document.getElementById("three-layer");
 const asciiCanvas = document.getElementById("ascii");
 const asciiCtx = asciiCanvas.getContext("2d");
 
+// ロゴ画像をプリロード（captureCanvas内のcomplete依存を排除）
+const _logoImg = new Image();
+const _logoReady = new Promise(resolve => {
+  _logoImg.onload  = resolve;
+  _logoImg.onerror = resolve;
+  _logoImg.src = "./jianye-logo-250250.png";
+});
+
+
 const video = document.getElementById("video");
 const enableCameraBtn = document.getElementById("enableCameraBtn");
 const captureBtn = document.getElementById("captureBtn");
@@ -103,17 +112,17 @@ async function typewriterLine(text, charMs = 14) {
 
 async function runBootSequence() {
   if (!bootLines || !bootScreen || bootScreen.style.display === "none") return;
-  await typewriterLine("\u25C8 SURVEILLANCE SYSTEM v2.4.1", 11);
+  await typewriterLine("◈ SURVEILLANCE SYSTEM v2.4.1", 11);
   await sleep(60);
-  await typewriterLine("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500", 5);
+  await typewriterLine("──────────────────────────────", 5);
   await sleep(50);
-  await typewriterLine("\u25B8 INITIALIZING CORE...", 13);
+  await typewriterLine("▸ INITIALIZING CORE...", 13);
   await sleep(60);
-  await typewriterLine("\u25B8 LOADING NEURAL ASSETS...", 13);
+  await typewriterLine("▸ LOADING NEURAL ASSETS...", 13);
   await sleep(60);
-  await typewriterLine("\u25B8 CALIBRATING OPTICS...", 13);
+  await typewriterLine("▸ CALIBRATING OPTICS...", 13);
   await sleep(80);
-  await typewriterLine("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500", 5);
+  await typewriterLine("──────────────────────────────", 5);
   await sleep(80);
   await typewriterLine("SYSTEM ONLINE.", 22);
   await sleep(350);
@@ -187,11 +196,12 @@ function drawHudOnCanvas() {
   const w = asciiCanvas.width, h = asciiCanvas.height;
   const dpr = asciiCanvas.width / window.innerWidth;
   const isPortrait = window.innerHeight > window.innerWidth;
-  const margin = Math.round((isPortrait ? 20 : 40) * dpr);
+  const marginX = Math.round(40 * dpr);
+  const marginY = Math.round((isPortrait ? 20 : 40) * dpr);
   const fs = Math.round((isPortrait ? 8 : 10.5) * dpr);
   const lh = fs * 1.55;
-  const lx = margin;
-  let ly = margin;
+  const lx = marginX;
+  let ly = marginY;
 
   const now = new Date();
   const p2 = (n) => String(n).padStart(2, "0");
@@ -200,10 +210,10 @@ function drawHudOnCanvas() {
   const time = `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}.${p3(now.getMilliseconds())}`;
 
   const lines = [
-    "\u25C8 SURVEILLANCE ACTIVE",
+    "◈ SURVEILLANCE ACTIVE",
     `${date} / ${time}`,
-    `\u25C8 TZ: ${geoInfo.tz}`,
-    `\u25C8 LOC: ${geoInfo.country}`,
+    `◈ TZ: ${geoInfo.tz}`,
+    `◈ LOC: ${geoInfo.country}`,
   ];
 
   asciiCtx.save();
@@ -284,9 +294,6 @@ function applyColorMode(mode) {
   currentTheme = T;
 
   document.body.style.background = T.bg;
-  // Three.js scene always stays white — ASCII sampling reads white bg correctly.
-  // Color theming is applied to ASCII text color and page background only.
-
   const logoEl = document.querySelector("#logo-br img");
   if (logoEl) logoEl.src = T.logo;
 
@@ -763,6 +770,7 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   }
 
   const fontSize = Math.max(8, Math.floor(cellH * fontSizeScale));
+
   asciiCtx.textAlign = "center";
   asciiCtx.textBaseline = "middle";
   asciiCtx.font = `${fontSize}px ${asciiConfig.fontFamily}`;
@@ -826,10 +834,11 @@ function drawCoordOverlay(timeSec, sourceMode) {
   const h = asciiCanvas.height;
   const dpr = asciiCanvas.width / window.innerWidth;
   const isPortrait = window.innerHeight > window.innerWidth;
-  const margin = Math.round((isPortrait ? 20 : 40) * dpr);
+  const marginX = Math.round(40 * dpr);
+  const marginY = Math.round((isPortrait ? 20 : 40) * dpr);
   const fs = Math.round((isPortrait ? 8 : 10.5) * dpr);
   const lh = fs * 1.55;
-  const lx = margin;
+  const lx = marginX;
 
   let cx, cy, cz, dist, proximity;
 
@@ -859,17 +868,17 @@ function drawCoordOverlay(timeSec, sourceMode) {
   state.proxAlert = isAlert;
 
   const filled = Math.round(proximity * 8);
-  const bar = "\u2588".repeat(filled) + "\u2591".repeat(8 - filled);
+  const bar = "█".repeat(filled) + "░".repeat(8 - filled);
 
   let lines, ly, textAlign, lx2;
 
   if (isPortrait) {
     // 縦画面: 3行コンパクト、右上に配置（textAlign: right）
     const w = asciiCanvas.width;
-    ly = margin;
-    lx2 = w - margin;
+    ly = marginY;
+    lx2 = w - marginX;
     lines = [
-      flashOn ? "\u26A0 PROXIMITY ALERT" : "\u25C8 TARGET ACQUIRED",
+      flashOn ? "⚠ PROXIMITY ALERT" : "◈ TARGET ACQUIRED",
       `X:${String(cx).padStart(8)}  Y:${String(cy).padStart(8)}`,
       `Z:${String(cz).padStart(8)}  DIST:${String(dist).padStart(7)}m`,
       `PROX [${bar}]`,
@@ -878,14 +887,14 @@ function drawCoordOverlay(timeSec, sourceMode) {
     // PC: 9行、左中央に配置
     ly = h * 0.26;
     lines = [
-      flashOn ? "\u26A0 PROXIMITY ALERT" : "\u25C8 TARGET ACQUIRED",
-      "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+      flashOn ? "⚠ PROXIMITY ALERT" : "◈ TARGET ACQUIRED",
+      "──────────────────",
       `X: ${String(cx).padStart(9)}`,
       `Y: ${String(cy).padStart(9)}`,
       `Z: ${String(cz).padStart(9)}`,
-      "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+      "──────────────────",
       `DIST:${String(dist).padStart(10)}m`,
-      "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+      "──────────────────",
       `PROX [${bar}]`,
     ];
   }
@@ -968,93 +977,226 @@ if (bc) {
 }
 
 // =====================================================
-// CAPTURE
+// CAPTURE / RECORD — NEW FLOW
 // =====================================================
-function captureCanvas() {
-  // 高解像度キャプチャ: canvasを3倍サイズに拡大して再描画
+
+async function buildHighResOffscreen() {
+  // モバイル: canvasが既に物理解像度なのでスケール不要
+  // デスクトップ: 3倍アップスケール
   const CAPTURE_SCALE = 3;
-  const origW = asciiCanvas.width;
-  const origH = asciiCanvas.height;
-
-  asciiCanvas.width = Math.round(window.innerWidth * CAPTURE_SCALE);
+  const origW = asciiCanvas.width, origH = asciiCanvas.height;
+  asciiCanvas.width  = Math.round(window.innerWidth  * CAPTURE_SCALE);
   asciiCanvas.height = Math.round(window.innerHeight * CAPTURE_SCALE);
-
   state.captureMode = true;
   const elapsed = clock.getElapsedTime();
   if (state.source === "object") {
-    drawAsciiFromSource({
-      imageSource: renderer.domElement,
-      sourceMode: "object",
-      faceBoxNorm: null,
-      proximity01: state.objectProximity01,
-      timeSec: elapsed,
-    });
+    drawAsciiFromSource({ imageSource: renderer.domElement, sourceMode: "object",
+      faceBoxNorm: null, proximity01: state.objectProximity01, timeSec: elapsed });
   } else {
-    drawAsciiFromSource({
-      imageSource: personCanvas,
-      sourceMode: "camera",
-      faceBoxNorm: state.faceBoxNorm,
-      proximity01: state.zoom01,
-      timeSec: elapsed,
-    });
+    drawAsciiFromSource({ imageSource: personCanvas, sourceMode: "camera",
+      faceBoxNorm: state.faceBoxNorm, proximity01: state.zoom01, timeSec: elapsed });
   }
   state.captureMode = false;
-
-  // テーマ背景色に合成
   const offscreen = document.createElement("canvas");
-  offscreen.width = asciiCanvas.width;
-  offscreen.height = asciiCanvas.height;
+  offscreen.width = asciiCanvas.width; offscreen.height = asciiCanvas.height;
   const ctx = offscreen.getContext("2d");
   ctx.fillStyle = currentTheme.bg;
   ctx.fillRect(0, 0, offscreen.width, offscreen.height);
   ctx.drawImage(asciiCanvas, 0, 0);
-
-  // ロゴを右下に合成（現在のカラーテーマに対応したロゴを使用）
-  const logoImg = document.querySelector("#logo-br img");
-  if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
-    const canvasScale = asciiCanvas.width / window.innerWidth;
-    const isPortrait = window.innerHeight > window.innerWidth;
-    const logoCSS = IS_MOBILE ? 36 : 50;
-    const logoSize = Math.round(logoCSS * canvasScale);
-    const margin = Math.round((isPortrait ? 20 : 40) * canvasScale);
-    const lx = offscreen.width - margin - logoSize;
-    const ly = offscreen.height - margin - logoSize;
-    ctx.drawImage(logoImg, lx, ly, logoSize, logoSize);
+  // DOMのロゴ要素をそのまま転写（位置・サイズ・テーマが確実に一致）
+  const logoEl = document.querySelector("#logo-br img");
+  if (logoEl && logoEl.complete && logoEl.naturalWidth > 0) {
+    const rect  = logoEl.getBoundingClientRect();
+    const scale = asciiCanvas.width / window.innerWidth;
+    ctx.drawImage(logoEl, rect.left * scale, rect.top * scale, rect.width * scale, rect.height * scale);
   }
-
-  // フィルムグレインを合成
   const noiseCanvas = document.createElement("canvas");
-  noiseCanvas.width = offscreen.width;
-  noiseCanvas.height = offscreen.height;
-  const noiseCtx = noiseCanvas.getContext("2d");
-  const noiseData = noiseCtx.createImageData(offscreen.width, offscreen.height);
-  for (let i = 0; i < noiseData.data.length; i += 4) {
+  noiseCanvas.width = offscreen.width; noiseCanvas.height = offscreen.height;
+  const nctx = noiseCanvas.getContext("2d");
+  const nd = nctx.createImageData(offscreen.width, offscreen.height);
+  for (let i = 0; i < nd.data.length; i += 4) {
     const v = Math.floor(Math.random() * 256);
-    noiseData.data[i] = v;
-    noiseData.data[i + 1] = v;
-    noiseData.data[i + 2] = v;
-    noiseData.data[i + 3] = 255;
+    nd.data[i] = nd.data[i+1] = nd.data[i+2] = v; nd.data[i+3] = 255;
   }
-  noiseCtx.putImageData(noiseData, 0, 0);
-  ctx.globalAlpha = 0.055;
-  ctx.drawImage(noiseCanvas, 0, 0);
-  ctx.globalAlpha = 1.0;
-
-  // canvasを元のサイズに戻す
-  asciiCanvas.width = origW;
-  asciiCanvas.height = origH;
-
-  const dataURL = offscreen.toDataURL("image/png");
-  const a = document.createElement("a");
-  a.href = dataURL;
-  a.download = `jianye-${Date.now()}.png`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  nctx.putImageData(nd, 0, 0);
+  ctx.globalAlpha = 0.055; ctx.drawImage(noiseCanvas, 0, 0); ctx.globalAlpha = 1.0;
+  asciiCanvas.width = origW; asciiCanvas.height = origH;
+  return offscreen;
 }
 
+async function doPhotoCapture() {
+  const offscreen = await buildHighResOffscreen();
+  showResultPopup("photo", offscreen.toDataURL("image/png"), null);
+}
+
+// ── VIDEO RECORDING ──
+let _mediaRecorder  = null;
+let _recordedChunks = [];
+let _recStartTime   = null;
+let _recAutoStop    = null;
+let _recTickId      = null;
+let _recMimeType    = "";
+let _isRecording    = false;
+const REC_MAX_SEC   = 15;
+
+// 録画用合成キャンバス（background + asciiCanvas を合成してストリームを取得）
+const _recordCanvas = document.createElement("canvas");
+const _recordCtx    = _recordCanvas.getContext("2d");
+
+function detectMimeType() {
+  const candidates = [
+    "video/mp4;codecs=h264", "video/mp4;codecs=avc1",
+    "video/mp4", "video/webm;codecs=vp9", "video/webm",
+  ];
+  for (const t of candidates) { if (MediaRecorder.isTypeSupported(t)) return t; }
+  return "";
+}
+
+function enterRecordingMode() {
+  document.getElementById("ui").style.display = "none";
+  document.getElementById("rec-ui").style.display = "flex";
+  document.getElementById("rec-btn").addEventListener("click", onRecBtnClick);
+  document.getElementById("rec-cancel").addEventListener("click", exitRecordingMode, { once: true });
+}
+
+function onRecBtnClick() {
+  if (_isRecording) stopRecording();
+  else startRecording();
+}
+
+function startRecording() {
+  _isRecording = true; _recordedChunks = [];
+  _recMimeType = detectMimeType(); _recStartTime = Date.now();
+  // 合成キャンバスをasciiCanvasに合わせてリサイズしてからストリーム取得
+  _recordCanvas.width  = asciiCanvas.width;
+  _recordCanvas.height = asciiCanvas.height;
+  const stream = _recordCanvas.captureStream(30);
+  _mediaRecorder = new MediaRecorder(stream, { mimeType: _recMimeType, videoBitsPerSecond: 16000000 });
+  _mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _recordedChunks.push(e.data); };
+  _mediaRecorder.onstop = onRecordingStop;
+  _mediaRecorder.start(100);
+  const recBtn = document.getElementById("rec-btn");
+  recBtn.classList.add("recording");
+  recBtn.textContent = "STOP";
+  document.getElementById("rec-indicator").classList.add("active");
+  _recTickId   = setInterval(updateRecTick, 100);
+  _recAutoStop = setTimeout(stopRecording, REC_MAX_SEC * 1000);
+}
+
+function stopRecording() {
+  if (!_isRecording || !_mediaRecorder) return;
+  clearTimeout(_recAutoStop); clearInterval(_recTickId);
+  _isRecording = false; _mediaRecorder.stop();
+}
+
+function captureThumbForVideo() {
+  // 録画と同じ合成キャンバスから取得（背景+ASCII合成済みで確実に可視）
+  const thumb = document.createElement("canvas");
+  thumb.width  = _recordCanvas.width;
+  thumb.height = _recordCanvas.height;
+  thumb.getContext("2d").drawImage(_recordCanvas, 0, 0);
+  return thumb.toDataURL("image/jpeg", 0.85);
+}
+
+function onRecordingStop() {
+  const blob = new Blob(_recordedChunks, { type: _recMimeType });
+  exitRecordingMode();
+  const thumbURL = captureThumbForVideo();
+  showResultPopup("video", thumbURL, blob);
+}
+
+function exitRecordingMode() {
+  clearTimeout(_recAutoStop); clearInterval(_recTickId);
+  _isRecording = false;
+  const recBtn = document.getElementById("rec-btn");
+  recBtn.classList.remove("recording");
+  recBtn.textContent = "REC";
+  recBtn.removeEventListener("click", onRecBtnClick);
+  document.getElementById("rec-indicator").classList.remove("active");
+  document.getElementById("rec-bar-fill").style.width = "0%";
+  document.getElementById("rec-timer").textContent = "00:00";
+  document.getElementById("rec-ui").style.display = "none";
+  document.getElementById("ui").style.display = "";
+}
+
+function updateRecTick() {
+  if (!_recStartTime) return;
+  const sec = (Date.now() - _recStartTime) / 1000;
+  document.getElementById("rec-bar-fill").style.width =
+    `${Math.min(sec / REC_MAX_SEC * 100, 100)}%`;
+  const s = Math.floor(sec);
+  document.getElementById("rec-timer").textContent =
+    `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+}
+
+// ── RESULT POPUP ──
+let _resultBlob = null, _resultIsVideo = false;
+
+function showResultPopup(type, thumbURL, blob) {
+  _resultIsVideo = type === "video"; _resultBlob = blob;
+  document.getElementById("result-thumb").src = thumbURL;
+  document.getElementById("result-video-icon").style.display = _resultIsVideo ? "block" : "none";
+  document.getElementById("result-title").textContent = _resultIsVideo ? "◈ RECORDED" : "◈ CAPTURED";
+  const shareBtn = document.getElementById("result-share");
+  shareBtn.style.display = (IS_MOBILE && navigator.share) ? "block" : "none";
+  document.getElementById("result-popup").classList.add("visible");
+}
+
+function closeResultPopup() {
+  document.getElementById("result-popup").classList.remove("visible");
+  _resultBlob = null;
+}
+
+document.getElementById("result-close").addEventListener("click", closeResultPopup);
+
+document.getElementById("result-download").addEventListener("click", () => {
+  if (_resultIsVideo && _resultBlob) {
+    const ext = _recMimeType.includes("mp4") ? "mp4" : "webm";
+    const url = URL.createObjectURL(_resultBlob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `jianye-${Date.now()}.${ext}`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } else {
+    const a = document.createElement("a");
+    a.href = document.getElementById("result-thumb").src;
+    a.download = `jianye-${Date.now()}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+});
+
+document.getElementById("result-share").addEventListener("click", async () => {
+  try {
+    if (_resultIsVideo && _resultBlob) {
+      const ext  = _recMimeType.includes("mp4") ? "mp4" : "webm";
+      const file = new File([_resultBlob], `jianye-${Date.now()}.${ext}`, { type: _recMimeType });
+      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: "JIAN YE" });
+    } else {
+      const res  = await fetch(document.getElementById("result-thumb").src);
+      const blob = await res.blob();
+      const file = new File([blob], `jianye-${Date.now()}.png`, { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: "JIAN YE" });
+    }
+  } catch (e) { if (e.name !== "AbortError") console.error("share:", e); }
+});
+
+document.getElementById("mode-close").addEventListener("click", () => {
+  document.getElementById("mode-popup").classList.remove("visible");
+});
+document.getElementById("btn-photo").addEventListener("click", () => {
+  document.getElementById("mode-popup").classList.remove("visible");
+  doPhotoCapture();
+});
+document.getElementById("btn-movie").addEventListener("click", () => {
+  document.getElementById("mode-popup").classList.remove("visible");
+  enterRecordingMode();
+});
+
 if (captureBtn) {
-  captureBtn.addEventListener("click", captureCanvas);
+  captureBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.getElementById("mode-popup").classList.toggle("visible");
+  });
 }
 
 // =====================================================
@@ -1099,19 +1241,19 @@ enableCameraBtn.addEventListener("click", async () => {
 // =====================================================
 function resizeAll() {
   const w = window.innerWidth, h = window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio, pc.pixelRatio);
 
   renderer.setPixelRatio(pc.pixelRatio);
   renderer.setSize(Math.round(w * THREE_SCALE), Math.round(h * THREE_SCALE), false);
-  // CSSサイズは常にフル
-  renderer.domElement.style.width = `${w}px`;
+  renderer.domElement.style.width  = `${w}px`;
   renderer.domElement.style.height = `${h}px`;
 
   camera3D.aspect = w / h;
   camera3D.updateProjectionMatrix();
 
-  asciiCanvas.width = Math.floor(w * Math.min(window.devicePixelRatio, pc.pixelRatio));
-  asciiCanvas.height = Math.floor(h * Math.min(window.devicePixelRatio, pc.pixelRatio));
-  asciiCanvas.style.width = `${w}px`;
+  asciiCanvas.width  = Math.floor(w * dpr);
+  asciiCanvas.height = Math.floor(h * dpr);
+  asciiCanvas.style.width  = `${w}px`;
   asciiCanvas.style.height = `${h}px`;
 
   camera3D.position.set(0, w < 768 ? 1.0 : 0.9, w < 768 ? 6.2 : 5.8);
@@ -1166,6 +1308,23 @@ function renderLoop() {
       proximity01: state.zoom01,
       timeSec: elapsed,
     });
+  }
+
+  // 録画中: 背景色 + asciiCanvas を合成キャンバスに転写
+  if (_isRecording) {
+    if (_recordCanvas.width !== asciiCanvas.width || _recordCanvas.height !== asciiCanvas.height) {
+      _recordCanvas.width  = asciiCanvas.width;
+      _recordCanvas.height = asciiCanvas.height;
+    }
+    _recordCtx.fillStyle = currentTheme.bg;
+    _recordCtx.fillRect(0, 0, _recordCanvas.width, _recordCanvas.height);
+    _recordCtx.drawImage(asciiCanvas, 0, 0);
+    const logoEl = document.querySelector("#logo-br img");
+    if (logoEl && logoEl.complete && logoEl.naturalWidth > 0) {
+      const rect  = logoEl.getBoundingClientRect();
+      const scale = asciiCanvas.width / window.innerWidth;
+      _recordCtx.drawImage(logoEl, rect.left * scale, rect.top * scale, rect.width * scale, rect.height * scale);
+    }
   }
 
   updateStatus();
