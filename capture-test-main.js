@@ -196,11 +196,12 @@ function drawHudOnCanvas() {
   const w = asciiCanvas.width, h = asciiCanvas.height;
   const dpr = asciiCanvas.width / window.innerWidth;
   const isPortrait = window.innerHeight > window.innerWidth;
-  const margin = Math.round(40 * dpr);
+  const marginX = Math.round(40 * dpr);
+  const marginY = Math.round((isPortrait ? 20 : 40) * dpr);
   const fs = Math.round((isPortrait ? 8 : 10.5) * dpr);
   const lh = fs * 1.55;
-  const lx = margin;
-  let ly = margin;
+  const lx = marginX;
+  let ly = marginY;
 
   const now = new Date();
   const p2 = (n) => String(n).padStart(2, "0");
@@ -833,10 +834,11 @@ function drawCoordOverlay(timeSec, sourceMode) {
   const h = asciiCanvas.height;
   const dpr = asciiCanvas.width / window.innerWidth;
   const isPortrait = window.innerHeight > window.innerWidth;
-  const margin = Math.round(40 * dpr);
+  const marginX = Math.round(40 * dpr);
+  const marginY = Math.round((isPortrait ? 20 : 40) * dpr);
   const fs = Math.round((isPortrait ? 8 : 10.5) * dpr);
   const lh = fs * 1.55;
-  const lx = margin;
+  const lx = marginX;
 
   let cx, cy, cz, dist, proximity;
 
@@ -873,8 +875,8 @@ function drawCoordOverlay(timeSec, sourceMode) {
   if (isPortrait) {
     // 縦画面: 3行コンパクト、右上に配置（textAlign: right）
     const w = asciiCanvas.width;
-    ly = margin;
-    lx2 = w - margin;
+    ly = marginY;
+    lx2 = w - marginX;
     lines = [
       flashOn ? "\u26A0 PROXIMITY ALERT" : "\u25C8 TARGET ACQUIRED",
       `X:${String(cx).padStart(8)}  Y:${String(cy).padStart(8)}`,
