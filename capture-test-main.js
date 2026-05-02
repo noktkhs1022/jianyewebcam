@@ -1045,7 +1045,8 @@ function enterRecordingMode() {
 }
 
 function onRecBtnClick() {
-  if (!_isRecording) startRecording();
+  if (_isRecording) stopRecording();
+  else startRecording();
 }
 
 function startRecording() {
@@ -1058,7 +1059,6 @@ function startRecording() {
   _mediaRecorder.start(100);
   document.getElementById("rec-btn").classList.add("recording");
   document.getElementById("rec-indicator").classList.add("active");
-  document.getElementById("rec-stop").classList.add("visible");
   _recTickId   = setInterval(updateRecTick, 100);
   _recAutoStop = setTimeout(stopRecording, REC_MAX_SEC * 1000);
 }
@@ -1090,7 +1090,6 @@ function exitRecordingMode() {
   document.getElementById("rec-indicator").classList.remove("active");
   document.getElementById("rec-bar-fill").style.width = "0%";
   document.getElementById("rec-timer").textContent = "00:00";
-  document.getElementById("rec-stop").classList.remove("visible");
   document.getElementById("rec-ui").style.display = "none";
   document.getElementById("ui").style.display = "";
 }
