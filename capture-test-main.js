@@ -739,8 +739,6 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   const fontSizeScale = asciiConfig.baseFontSizeScale * (1 + proximity01 * fontGrow);
   const lineHeightScale = asciiConfig.lineHeightBaseScale * (1 + proximity01 * lineGrow);
   const lineHeight = cellH * lineHeightScale;
-  // object/camera ともにcanvas全体(screen.height)を埋める
-  // cameraは映像をフルサイズにスケールして描画
   const rows = Math.max(1, Math.floor(h / lineHeight));
 
   // ASCII専用sampleCanvasを使用 → MP用との競合解消
@@ -1037,12 +1035,10 @@ if (bc) {
 async function buildHighResOffscreen() {
   // モバイル: canvasが既に物理解像度なのでスケール不要
   // デスクトップ: 3倍アップスケール
-  const CAPTURE_SCALE = IS_MOBILE ? 1 : 3;
+  const CAPTURE_SCALE = 3;
   const origW = asciiCanvas.width, origH = asciiCanvas.height;
-  if (CAPTURE_SCALE > 1) {
-    asciiCanvas.width  = Math.round(window.innerWidth  * CAPTURE_SCALE);
-    asciiCanvas.height = Math.round(window.innerHeight * CAPTURE_SCALE);
-  }
+  asciiCanvas.width  = Math.round(window.innerWidth  * CAPTURE_SCALE);
+  asciiCanvas.height = Math.round(window.innerHeight * CAPTURE_SCALE);
   state.captureMode = true;
   const elapsed = clock.getElapsedTime();
   if (state.source === "object") {
@@ -1091,9 +1087,7 @@ async function buildHighResOffscreen() {
   }
   nctx.putImageData(nd, 0, 0);
   ctx.globalAlpha = 0.055; ctx.drawImage(noiseCanvas, 0, 0); ctx.globalAlpha = 1.0;
-  if (CAPTURE_SCALE > 1) {
-    asciiCanvas.width = origW; asciiCanvas.height = origH;
-  }
+  asciiCanvas.width = origW; asciiCanvas.height = origH;
   return offscreen;
 }
 
@@ -1313,27 +1307,21 @@ enableCameraBtn.addEventListener("click", async () => {
 // RESIZE
 // =====================================================
 function resizeAll() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  // モバイル: canvas・Three.jsともに物理解像度フル(screen.height)ベース
-  // → ASCII描画がcanvas全体を埋める、書き出しはフル解像度
-  const canvasH = IS_MOBILE ? screen.height : h;
+  const w = window.innerWidth, h = window.innerHeight;
   const dpr = Math.min(window.devicePixelRatio, pc.pixelRatio);
 
   renderer.setPixelRatio(pc.pixelRatio);
-  // Three.jsもcanvasHベースでレンダリング → ASCII全体に正しくサンプリングされる
-  renderer.setSize(Math.round(w * THREE_SCALE), Math.round(canvasH * THREE_SCALE), false);
+  renderer.setSize(Math.round(w * THREE_SCALE), Math.round(h * THREE_SCALE), false);
   renderer.domElement.style.width  = `${w}px`;
-  renderer.domElement.style.height = `${canvasH}px`;
+  renderer.domElement.style.height = `${h}px`;
 
-  // アスペクト比もcanvasH（物理解像度）ベース
-  camera3D.aspect = w / canvasH;
+  camera3D.aspect = w / h;
   camera3D.updateProjectionMatrix();
 
-  asciiCanvas.width  = Math.floor(w       * dpr);
-  asciiCanvas.height = Math.floor(canvasH * dpr);
+  asciiCanvas.width  = Math.floor(w * dpr);
+  asciiCanvas.height = Math.floor(h * dpr);
   asciiCanvas.style.width  = `${w}px`;
-  asciiCanvas.style.height = `${canvasH}px`;
+  asciiCanvas.style.height = `${h}px`;
 
   camera3D.position.set(0, w < 768 ? 1.0 : 0.9, w < 768 ? 6.2 : 5.8);
 }
