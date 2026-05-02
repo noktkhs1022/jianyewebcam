@@ -1062,12 +1062,14 @@ async function buildHighResOffscreen() {
   // DOMのimg要素を優先使用（ページ読み込み時に確実にロード済み）、次点でプリロード画像
   const logoEl = document.querySelector("#logo-br img") || (_logoImg.naturalWidth > 0 ? _logoImg : null);
   if (logoEl) {
-    const scale   = asciiCanvas.width / window.innerWidth;
+    const scale    = asciiCanvas.width / window.innerWidth;
     const portrait = window.innerHeight > window.innerWidth;
     const logoSize = Math.round((IS_MOBILE ? 36 : 50) * scale);
     const margin   = Math.round((portrait ? 20 : 40) * scale);
-    ctx.drawImage(logoEl, offscreen.width  - margin - logoSize,
-                          offscreen.height - margin - logoSize, logoSize, logoSize);
+    // ロゴはビューポート内（コンテンツエリア）の右下に配置
+    const viewportH = Math.floor(window.innerHeight * scale);
+    ctx.drawImage(logoEl, offscreen.width - margin - logoSize,
+                          viewportH       - margin - logoSize, logoSize, logoSize);
   }
   const noiseCanvas = document.createElement("canvas");
   noiseCanvas.width = offscreen.width; noiseCanvas.height = offscreen.height;
