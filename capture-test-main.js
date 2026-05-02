@@ -760,6 +760,24 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   }
 
   const fontSize = Math.max(8, Math.floor(cellH * fontSizeScale));
+
+  // ── サイトラベル クリアランスゾーン計算 ──
+  const SITE_TEXT    = "www.jianye.online";
+  const isPortrait   = window.innerHeight > window.innerWidth;
+  const effDpr       = w / window.innerWidth;
+  const siteFontSize = Math.round((isPortrait ? 10 : 14) * effDpr);
+  const siteBottomMargin = (isPortrait ? 85 : 60) * effDpr;
+  const siteY = h - siteBottomMargin;
+  asciiCtx.font = `${siteFontSize}px "VT323", monospace`;
+  const siteTW  = asciiCtx.measureText(SITE_TEXT).width;
+  const siteX   = w / 2;
+  const sPadX   = siteFontSize * 1.0;
+  const sPadY   = siteFontSize * 0.7;
+  const sClearL = siteX - siteTW / 2 - sPadX;
+  const sClearR = siteX + siteTW / 2 + sPadX;
+  const sClearT = siteY - siteFontSize / 2 - sPadY;
+  const sClearB = siteY + siteFontSize / 2 + sPadY;
+
   asciiCtx.textAlign = "center";
   asciiCtx.textBaseline = "middle";
   asciiCtx.font = `${fontSize}px ${asciiConfig.fontFamily}`;
@@ -774,6 +792,9 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
       const ch = pickAsciiChar(luma, edge, nx, ny, faceBoxNorm, timeSec, sourceMode);
       const px = x * cellW + cellW * 0.5;
       const py = y * lineHeight + lineHeight * 0.5;
+
+      // サイトラベルのクリアランスゾーン内はスキップ
+      if (px >= sClearL && px <= sClearR && py >= sClearT && py <= sClearB) continue;
 
       if (ch === SPECIAL_CHAR) {
         asciiCtx.fillStyle = sourceMode === "camera"
@@ -794,6 +815,17 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   }
 
   drawMinimalFx(timeSec, sourceMode);
+
+  // ── サイトラベル描画（ASCII描画後、FX適用後に上乗せ）──
+  asciiCtx.save();
+  asciiCtx.font = `${siteFontSize}px "VT323", monospace`;
+  asciiCtx.textAlign    = "center";
+  asciiCtx.textBaseline = "middle";
+  // 周囲のASCII文字と同等の不透明度
+  asciiCtx.fillStyle = `rgba(${currentTheme.fg},0.62)`;
+  asciiCtx.fillText(SITE_TEXT, siteX, siteY);
+  asciiCtx.restore();
+
   drawCoordOverlay(timeSec, sourceMode);
   drawHudOnCanvas();
 }
