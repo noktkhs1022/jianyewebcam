@@ -1057,7 +1057,9 @@ function startRecording() {
   _mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _recordedChunks.push(e.data); };
   _mediaRecorder.onstop = onRecordingStop;
   _mediaRecorder.start(100);
-  document.getElementById("rec-btn").classList.add("recording");
+  const recBtn = document.getElementById("rec-btn");
+  recBtn.classList.add("recording");
+  recBtn.textContent = "STOP";
   document.getElementById("rec-indicator").classList.add("active");
   _recTickId   = setInterval(updateRecTick, 100);
   _recAutoStop = setTimeout(stopRecording, REC_MAX_SEC * 1000);
@@ -1069,16 +1071,25 @@ function stopRecording() {
   _isRecording = false; _mediaRecorder.stop();
 }
 
+function captureThumbForVideo() {
+  // Three.jsとASCIIを明示的に1フレーム描画してからキャプチャ（タイミング依存を排除）
+  renderer.render(scene, camera3D);
+  const elapsed = clock.getElapsedTime();
+  if (state.source === "object") {
+    drawAsciiFromSource({ imageSource: renderer.domElement, sourceMode: "object",
+      faceBoxNorm: null, proximity01: state.objectProximity01, timeSec: elapsed });
+  } else {
+    drawAsciiFromSource({ imageSource: personCanvas, sourceMode: "camera",
+      faceBoxNorm: state.faceBoxNorm, proximity01: state.zoom01, timeSec: elapsed });
+  }
+  return asciiCanvas.toDataURL("image/jpeg", 0.85);
+}
+
 function onRecordingStop() {
   const blob = new Blob(_recordedChunks, { type: _recMimeType });
   exitRecordingMode();
-  // rAFを2回挟みrenderLoopが1フレーム描画した後にサムネイルをキャプチャ
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const thumbURL = asciiCanvas.toDataURL("image/jpeg", 0.85);
-      showResultPopup("video", thumbURL, blob);
-    });
-  });
+  const thumbURL = captureThumbForVideo();
+  showResultPopup("video", thumbURL, blob);
 }
 
 function exitRecordingMode() {
@@ -1086,6 +1097,7 @@ function exitRecordingMode() {
   _isRecording = false;
   const recBtn = document.getElementById("rec-btn");
   recBtn.classList.remove("recording");
+  recBtn.textContent = "REC";
   recBtn.removeEventListener("click", onRecBtnClick);
   document.getElementById("rec-indicator").classList.remove("active");
   document.getElementById("rec-bar-fill").style.width = "0%";

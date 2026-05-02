@@ -237,32 +237,25 @@
     /* 円形RECボタン */
     #rec-btn {
       appearance: none;
-      width: 52px; height: 52px;
+      width: 56px; height: 56px;
       border-radius: 50%;
-      border: 2px solid rgba(0,0,0,0.8);
-      background: rgba(255,255,255,0.92);
-      cursor: pointer; position: relative;
+      border: 2px solid rgba(0,0,0,0.85);
+      background: rgba(255,255,255,0.95);
+      cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: border-color 0.15s;
-    }
-    /* 内側の円 */
-    #rec-btn::after {
-      content: '';
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      background: transparent;
-      border: 1.5px solid rgba(0,0,0,0.25);
-      transition: background 0.15s, border-color 0.15s;
+      font-family: "VT323", monospace;
+      font-size: 11px; letter-spacing: 0.05em;
+      color: black;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      user-select: none;
     }
     #rec-btn.recording {
-      border-color: #cc0000;
-    }
-    #rec-btn.recording::after {
       background: #cc0000;
       border-color: #cc0000;
+      color: white;
     }
 
-    #rec-stop, #rec-cancel {
+    #rec-cancel {
       appearance: none;
       border: 1px solid rgba(0,0,0,0.9);
       background: rgba(255,255,255,0.92); color: black;
@@ -270,8 +263,6 @@
       padding: 2px 6px; cursor: pointer; border-radius: 0;
       letter-spacing: 0.04em;
     }
-    #rec-stop { display: none; }
-    #rec-stop.visible { display: inline-block; }
 
     /* ── RESULT POPUP ── */
     #result-popup .popup-box { min-width: 260px; max-width: 320px; }
@@ -476,7 +467,7 @@
       <span id="rec-timer">00:00</span>
     </div>
     <div id="rec-btn-row">
-      <button id="rec-btn" type="button"></button>
+      <button id="rec-btn" type="button">REC</button>
       <button id="rec-cancel" type="button">CANCEL</button>
     </div>
   </div>
