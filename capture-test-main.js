@@ -735,13 +735,9 @@ function drawAsciiFromSource({ imageSource, sourceMode, faceBoxNorm = null, prox
   const fontSizeScale = asciiConfig.baseFontSizeScale * (1 + proximity01 * fontGrow);
   const lineHeightScale = asciiConfig.lineHeightBaseScale * (1 + proximity01 * lineGrow);
   const lineHeight = cellH * lineHeightScale;
-  // objectモード: canvas全体(screen.height)を埋める
-  // cameraモード: 映像ソースはビューポート高さ基準なので比率を維持
-  const dpr = w / window.innerWidth;
-  const effectiveH = (IS_MOBILE && sourceMode === "camera")
-    ? Math.floor(window.innerHeight * dpr)
-    : h;
-  const rows = Math.max(1, Math.floor(effectiveH / lineHeight));
+  // object/camera ともにcanvas全体(screen.height)を埋める
+  // cameraは映像をフルサイズにスケールして描画
+  const rows = Math.max(1, Math.floor(h / lineHeight));
 
   // ASCII専用sampleCanvasを使用 → MP用との競合解消
   sampleCanvasAscii.width = cols;
